@@ -1,0 +1,37 @@
+.status-bar {
+  height: 24px;
+  background-color: var(--background-secondary);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.status-left {
+  display: flex;
+  gap: 16px;
+}
+
+.status-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.status-right {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.status-modified {
+  color: var(--text-secondary);
+}
+
+.status-encoding {
+  color: var(--text-secondary);
+}
+

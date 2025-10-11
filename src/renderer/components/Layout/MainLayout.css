@@ -1,0 +1,102 @@
+.main-layout {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Resizable Panel Group */
+.editor-preview-group {
+  flex: 1;
+  display: flex;
+  overflow: visible;
+}
+
+.editor-panel,
+.preview-panel {
+  height: 100%;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* flex item이 축소될 수 있도록 함 */
+}
+
+/* Resize Handle */
+.resize-handle {
+  width: 4px;
+  background-color: var(--border-color);
+  cursor: col-resize;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.resize-handle:hover {
+  background-color: var(--accent-color, #0066cc);
+}
+
+.resize-handle:active {
+  background-color: var(--accent-color, #0066cc);
+}
+
+/* Resize Handle 드래그 영역 확장 */
+.resize-handle::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: 0;
+  bottom: 0;
+}
+
+/* 드래그 앤 드롭 시각적 피드백 */
+.main-layout.drag-over {
+  background-color: var(--drag-over-background, rgba(0, 102, 204, 0.1));
+  border: 2px dashed var(--accent-color, #0066cc);
+  position: relative;
+}
+
+.main-layout.drag-over::before {
+  content: '파일을 여기에 드롭하세요';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent-color, #0066cc);
+  background-color: var(--background-primary);
+  padding: 16px 24px;
+  border-radius: 8px;
+  border: 2px solid var(--accent-color, #0066cc);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* 드래그 오버 시 다른 요소들 반투명 처리 */
+.main-layout.drag-over .title-bar,
+.main-layout.drag-over .main-content,
+.main-layout.drag-over .status-bar {
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+}
+
+/* macOS 스타일 향상 */
+@media (prefers-color-scheme: dark) {
+  .main-layout {
+    background-color: var(--background-primary);
+  }
+
+  .main-layout.drag-over {
+    background-color: var(--drag-over-background, rgba(0, 102, 204, 0.15));
+  }
+}

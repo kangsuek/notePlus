@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "outDir": "./dev-dist"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "build", "out", "**/*.js", "**/*.js.map"]
+}

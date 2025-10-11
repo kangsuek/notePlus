@@ -1,0 +1,119 @@
+.editor-section {
+  flex: 1;
+  background-color: var(--background-primary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0; /* flex item이 축소될 수 있도록 함 */
+}
+
+.editor-header {
+  height: 48px;
+  padding: 0 16px;
+  background-color: var(--background-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.editor-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.editor-container {
+  flex: 1;
+  display: flex;
+  overflow: visible;
+  min-height: 0; /* flex item이 축소될 수 있도록 함 */
+}
+
+.line-numbers-wrapper {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: var(--background-secondary); /* wrapper에 배경색 적용 */
+  border-right: 1px solid var(--border-color);
+  /* 스크롤바 숨기기 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.line-numbers-wrapper::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.line-numbers {
+  color: var(--text-secondary);
+  padding: 16px 12px;
+  text-align: right;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  user-select: none;
+  min-width: 50px;
+}
+
+.line-number {
+  height: 22.4px; /* 14px * 1.6 line-height */
+  padding: 0 8px;
+  margin: 0 -8px;
+  transition:
+    background-color 0.1s,
+    color 0.1s;
+}
+
+.line-number-active {
+  background-color: var(--hover-background);
+  color: var(--text-primary);
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.editor-textarea {
+  flex: 1;
+  padding: 16px;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  background-color: var(--background-primary);
+  color: var(--text-primary);
+  overflow-y: auto;
+  overflow-x: hidden; /* 가로 스크롤 숨기기 */
+  white-space: pre-wrap; /* 자동 줄바꿈 활성화 */
+  word-wrap: break-word; /* 긴 단어 줄바꿈 */
+  overflow-wrap: break-word; /* 최신 브라우저 지원 */
+  /* macOS 스타일 스크롤바 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-secondary) transparent;
+}
+
+.editor-textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.editor-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.editor-textarea::-webkit-scrollbar-thumb {
+  background-color: var(--text-secondary);
+  border-radius: 4px;
+  opacity: 0.5;
+}
+
+.editor-textarea::-webkit-scrollbar-thumb:hover {
+  opacity: 0.8;
+}
+
+.editor-textarea::placeholder {
+  color: var(--text-placeholder);
+}

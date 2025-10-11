@@ -1,0 +1,236 @@
+.markdown-preview {
+  width: 100%;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  overflow-y: auto;
+  word-wrap: break-word;
+}
+
+/* 제목 스타일 */
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.markdown-preview h1 {
+  font-size: 32px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.markdown-preview h2 {
+  font-size: 26px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 6px;
+}
+
+.markdown-preview h3 {
+  font-size: 22px;
+}
+
+.markdown-preview h4 {
+  font-size: 18px;
+}
+
+.markdown-preview h5 {
+  font-size: 16px;
+}
+
+.markdown-preview h6 {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* 문단 스타일 */
+.markdown-preview p {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+/* 링크 스타일 */
+.markdown-preview a {
+  color: #007aff;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.markdown-preview a:hover {
+  color: #0051d5;
+  text-decoration: underline;
+}
+
+/* 목록 스타일 */
+.markdown-preview ul,
+.markdown-preview ol {
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding-left: 32px;
+}
+
+.markdown-preview li {
+  margin-bottom: 4px;
+}
+
+.markdown-preview li > p {
+  margin-bottom: 4px;
+}
+
+/* Task List (GFM) */
+.markdown-preview input[type='checkbox'] {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.markdown-preview li.task-list-item {
+  list-style-type: none;
+  margin-left: -24px;
+}
+
+/* 코드 스타일 */
+.markdown-preview code {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 14px;
+  background-color: var(--background-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #d32f2f;
+}
+
+.markdown-preview pre {
+  background-color: var(--background-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.markdown-preview pre code {
+  background-color: transparent;
+  padding: 0;
+  color: var(--text-primary);
+}
+
+/* 인용문 스타일 */
+.markdown-preview blockquote {
+  margin: 0 0 16px 0;
+  padding-left: 16px;
+  border-left: 4px solid var(--border-color);
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* 구분선 스타일 */
+.markdown-preview hr {
+  border: none;
+  border-top: 2px solid var(--border-color);
+  margin: 24px 0;
+}
+
+/* 표 스타일 */
+.markdown-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  display: block;
+}
+
+.markdown-preview table thead {
+  background-color: var(--background-secondary);
+}
+
+.markdown-preview table th,
+.markdown-preview table td {
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-preview table th {
+  font-weight: 600;
+}
+
+/* 이미지 스타일 */
+.markdown-preview img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+/* 텍스트 강조 */
+.markdown-preview strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.markdown-preview em {
+  font-style: italic;
+}
+
+.markdown-preview del {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+/* 첫 번째 요소의 위쪽 마진 제거 */
+.markdown-preview > *:first-child {
+  margin-top: 0 !important;
+}
+
+/* 마지막 요소의 아래쪽 마진 제거 */
+.markdown-preview > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* 계산 결과 스타일 (파란색) */
+.markdown-preview .calc-result {
+  color: #007aff;
+  font-weight: 600;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+
+/* 스크롤바 스타일 (macOS) */
+.markdown-preview::-webkit-scrollbar {
+  width: 8px;
+}
+
+.markdown-preview::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.markdown-preview::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.markdown-preview::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .markdown-preview code {
+    color: #ff6b6b;
+  }
+
+  .markdown-preview::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .markdown-preview::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+}

@@ -1,0 +1,107 @@
+.title-bar {
+  height: 52px;
+  background-color: var(--background-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  /* macOS traffic light buttons를 위한 여백 */
+  padding-left: 80px;
+  padding-right: 16px;
+}
+
+.title-bar-drag-region {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  /* Electron의 -webkit-app-region을 통해 드래그 가능 영역으로 설정 */
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.title-bar-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+.title-bar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 컨트롤 영역은 드래그 비활성화 */
+  -webkit-app-region: no-drag;
+}
+
+/* 다크 모드에서 타이틀바 스타일 */
+[data-theme='dark'] .title-bar {
+  background-color: var(--background-secondary);
+  border-bottom-color: var(--border-color);
+}
+
+/* 버튼이나 인터랙티브 요소는 드래그 비활성화 */
+.title-bar button {
+  -webkit-app-region: no-drag;
+}
+
+/* 모던한 아이콘 버튼 스타일 */
+.title-bar-icon {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+  min-width: 32px;
+  height: 32px;
+}
+
+.title-bar-icon:hover {
+  background-color: var(--hover-background);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.title-bar-icon:active {
+  transform: translateY(0);
+  background-color: var(--active-background);
+}
+
+.title-bar-icon svg {
+  transition: all 0.2s ease;
+}
+
+.title-bar-icon:hover svg {
+  transform: scale(1.1);
+}
+
+/* Preview 토글 아이콘 특별 스타일 */
+.preview-toggle-icon {
+  position: relative;
+}
+
+.preview-toggle-icon::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--accent-color, #0066cc);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.preview-toggle-icon:hover::after {
+  opacity: 0.6;
+}

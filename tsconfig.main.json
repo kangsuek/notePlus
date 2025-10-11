@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "lib": ["ES2020"],
+    "moduleResolution": "node",
+    "outDir": "dist/main",
+    "rootDir": "src/main",
+    
+    // Node.js 환경
+    "types": ["node"],
+    
+    // Electron 메인 프로세스는 Node.js 환경
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/main/**/*",
+    "src/shared/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/renderer",
+    "src/__tests__"
+  ]
+}
+
