@@ -311,6 +311,17 @@ const MainLayout: React.FC = React.memo(() => {
               }
             }, PERFORMANCE_CONFIG.DOM_UPDATE_DELAY);
 
+            // 최근 파일 목록에 추가 (드래그 앤 드롭으로 열린 파일도 포함)
+            // 드래그 앤 드롭 파일은 고유한 식별자로 관리 (파일명 + 타임스탬프)
+            if (window.electronAPI) {
+              try {
+                const uniqueId = `dropped:${file.name}:${Date.now()}`;
+                await window.electronAPI.invoke('recentFiles:add', uniqueId);
+              } catch (error) {
+                console.warn('Failed to add file to recent files:', error);
+              }
+            }
+
             // 최근 파일 목록 새로고침
             refreshRecentFiles();
           }

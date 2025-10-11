@@ -4,7 +4,7 @@ import { RecentFilesManager } from './RecentFilesManager';
 jest.mock('electron-store', () => {
   return jest.fn().mockImplementation(() => {
     let store: Record<string, any> = {};
-    
+
     return {
       get: jest.fn((key: string, defaultValue: any) => {
         return store[key] !== undefined ? store[key] : defaultValue;
@@ -35,7 +35,7 @@ describe('RecentFilesManager', () => {
     it('should add a file to the list', () => {
       manager.addFile('/path/to/file1.md');
       const files = manager.getFiles();
-      
+
       expect(files).toHaveLength(1);
       expect(files[0]).toEqual({
         path: '/path/to/file1.md',
@@ -47,7 +47,7 @@ describe('RecentFilesManager', () => {
       manager.addFile('/path/to/file1.md');
       manager.addFile('/path/to/file2.md');
       manager.addFile('/path/to/file1.md'); // 다시 열기
-      
+
       const files = manager.getFiles();
       expect(files).toHaveLength(2);
       expect(files[0]?.path).toBe('/path/to/file1.md'); // 최상단으로 이동
@@ -59,7 +59,7 @@ describe('RecentFilesManager', () => {
       for (let i = 1; i <= 11; i++) {
         manager.addFile(`/path/to/file${i}.md`);
       }
-      
+
       const files = manager.getFiles();
       expect(files).toHaveLength(10); // 최대 10개만 유지
       expect(files[0]?.path).toBe('/path/to/file11.md'); // 가장 최근 파일
@@ -69,14 +69,38 @@ describe('RecentFilesManager', () => {
     it('should update lastOpened when adding existing file', async () => {
       manager.addFile('/path/to/file1.md');
       const firstTime = manager.getFiles()[0]?.lastOpened;
-      
+
       // 약간의 시간 지연
       await new Promise((resolve) => setTimeout(resolve, 10));
-      
+
       manager.addFile('/path/to/file1.md');
       const secondTime = manager.getFiles()[0]?.lastOpened;
-      
+
       expect(secondTime?.getTime()).toBeGreaterThan(firstTime?.getTime() || 0);
+    });
+
+    it('should handle drag and drop files with display name', () => {
+      manager.addFile('dropped:test.md:1234567890');
+      const files = manager.getFiles();
+
+      expect(files).toHaveLength(1);
+      expect(files[0]).toEqual({
+        path: 'dropped:test.md:1234567890',
+        lastOpened: expect.any(Date),
+        displayName: 'test.md',
+      });
+    });
+
+    it('should handle regular files without display name', () => {
+      manager.addFile('/path/to/regular.md');
+      const files = manager.getFiles();
+
+      expect(files).toHaveLength(1);
+      expect(files[0]).toEqual({
+        path: '/path/to/regular.md',
+        lastOpened: expect.any(Date),
+        displayName: undefined,
+      });
     });
   });
 
@@ -84,9 +108,9 @@ describe('RecentFilesManager', () => {
     it('should remove a file from the list', () => {
       manager.addFile('/path/to/file1.md');
       manager.addFile('/path/to/file2.md');
-      
+
       manager.removeFile('/path/to/file1.md');
-      
+
       const files = manager.getFiles();
       expect(files).toHaveLength(1);
       expect(files[0]?.path).toBe('/path/to/file2.md');
@@ -94,9 +118,9 @@ describe('RecentFilesManager', () => {
 
     it('should do nothing if file does not exist', () => {
       manager.addFile('/path/to/file1.md');
-      
+
       manager.removeFile('/path/to/nonexistent.md');
-      
+
       const files = manager.getFiles();
       expect(files).toHaveLength(1);
     });
@@ -112,7 +136,7 @@ describe('RecentFilesManager', () => {
       manager.addFile('/path/to/file1.md');
       manager.addFile('/path/to/file2.md');
       manager.addFile('/path/to/file3.md');
-      
+
       const files = manager.getFiles();
       expect(files[0]?.path).toBe('/path/to/file3.md');
       expect(files[1]?.path).toBe('/path/to/file2.md');
@@ -124,9 +148,9 @@ describe('RecentFilesManager', () => {
     it('should clear all files', () => {
       manager.addFile('/path/to/file1.md');
       manager.addFile('/path/to/file2.md');
-      
+
       manager.clear();
-      
+
       const files = manager.getFiles();
       expect(files).toEqual([]);
     });
@@ -135,7 +159,7 @@ describe('RecentFilesManager', () => {
   describe('hasFile', () => {
     it('should return true if file exists', () => {
       manager.addFile('/path/to/file1.md');
-      
+
       expect(manager.hasFile('/path/to/file1.md')).toBe(true);
     });
 
@@ -144,4 +168,3 @@ describe('RecentFilesManager', () => {
     });
   });
 });
-

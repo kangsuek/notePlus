@@ -18,6 +18,7 @@ interface ReadFileResult {
 export interface RecentFile {
   path: string;
   lastOpened: Date;
+  displayName?: string; // 표시용 이름 (드래그 앤 드롭 파일용)
 }
 
 interface RecentFilesResult {
@@ -238,7 +239,7 @@ export async function getRecentFiles(): Promise<RecentFilesResult> {
     if (typeof result === 'object' && result !== null && 'success' in result) {
       const recentFilesResult = result as {
         success: boolean;
-        files?: Array<{ path: string; lastOpened: string }>;
+        files?: Array<{ path: string; lastOpened: string; displayName?: string }>;
         error?: string;
       };
 
@@ -247,6 +248,7 @@ export async function getRecentFiles(): Promise<RecentFilesResult> {
         const files: RecentFile[] = recentFilesResult.files.map((file) => ({
           path: file.path,
           lastOpened: new Date(file.lastOpened),
+          displayName: file.displayName,
         }));
 
         return {

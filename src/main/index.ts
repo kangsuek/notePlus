@@ -233,12 +233,31 @@ function setupIpcHandlers() {
     }
   });
 
+  // 최근 파일 목록에 추가
+  ipcMain.handle('recentFiles:add', async (_event, filePath: string) => {
+    try {
+      recentFilesManager.addFile(filePath);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to add recent file:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  });
+
   // 최근 파일 목록 조회
   ipcMain.handle('recentFiles:get', async () => {
     try {
       const files = recentFilesManager.getFiles();
-      // 파일 존재 여부 검증 및 필터링
+      // 파일 존재 여부 검증 및 필터링 (드래그 앤 드롭 파일 제외)
       const validFiles = files.filter((file) => {
+        // 드래그 앤 드롭 파일은 존재 여부 검증 건너뛰기
+        if (file.path.startsWith('dropped:')) {
+          return true;
+        }
+
         const exists = existsSync(file.path);
         // 존재하지 않는 파일은 목록에서 제거
         if (!exists) {

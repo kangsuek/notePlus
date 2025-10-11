@@ -279,7 +279,8 @@ const Sidebar = React.memo(
               ) : (
                 <ul className="file-list">
                   {recentFiles.map((file) => {
-                    const fileName = file.path.split('/').pop() || file.path;
+                    // displayName이 있으면 사용, 없으면 경로에서 파일명 추출
+                    const fileName = file.displayName || file.path.split('/').pop() || file.path;
                     const isSelected = selectedFile === file.path;
 
                     return (

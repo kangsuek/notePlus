@@ -6,6 +6,7 @@ import Store from 'electron-store';
 export interface RecentFile {
   path: string;
   lastOpened: Date;
+  displayName?: string; // 표시용 이름 (드래그 앤 드롭 파일용)
 }
 
 /**
@@ -26,33 +27,44 @@ export class RecentFilesManager {
   /**
    * 파일을 최근 목록에 추가
    * 이미 존재하는 파일이면 맨 위로 이동
-   * 
+   *
    * @param filePath 파일 경로
    */
   addFile(filePath: string): void {
     const files = this.getFiles();
-    
+
     // 기존 파일 제거 (있으면)
     const filteredFiles = files.filter((file) => file.path !== filePath);
-    
+
+    // 드래그 앤 드롭 파일인지 확인하고 표시 이름 설정
+    let displayName: string | undefined;
+    if (filePath.startsWith('dropped:')) {
+      // dropped:filename.md:timestamp 형식에서 파일명 추출
+      const parts = filePath.split(':');
+      if (parts.length >= 3) {
+        displayName = parts[1]; // 파일명 부분
+      }
+    }
+
     // 새 파일을 맨 앞에 추가
     const newFile: RecentFile = {
       path: filePath,
       lastOpened: new Date(),
+      displayName,
     };
-    
+
     filteredFiles.unshift(newFile);
-    
+
     // 최대 개수 제한
     const limitedFiles = filteredFiles.slice(0, this.MAX_FILES);
-    
+
     // 저장
     this.saveFiles(limitedFiles);
   }
 
   /**
    * 파일을 최근 목록에서 제거
-   * 
+   *
    * @param filePath 파일 경로
    */
   removeFile(filePath: string): void {
@@ -64,22 +76,23 @@ export class RecentFilesManager {
   /**
    * 최근 파일 목록 조회
    * lastOpened 기준으로 정렬 (최근 순)
-   * 
+   *
    * @returns 최근 파일 목록
    */
   getFiles(): RecentFile[] {
     const data = this.store.get(this.STORE_KEY, []) as any[];
-    
+
     // Date 객체로 변환
     return data.map((item) => ({
       path: item.path,
       lastOpened: new Date(item.lastOpened),
+      displayName: item.displayName,
     }));
   }
 
   /**
    * 특정 파일이 목록에 있는지 확인
-   * 
+   *
    * @param filePath 파일 경로
    * @returns 존재 여부
    */
@@ -102,4 +115,3 @@ export class RecentFilesManager {
     this.store.set(this.STORE_KEY, files);
   }
 }
-

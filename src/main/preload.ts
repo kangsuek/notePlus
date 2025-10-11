@@ -66,6 +66,7 @@ const electronAPI: ElectronAPI = {
       'dialog:saveFile',
       'file:read',
       'file:write',
+      'recentFiles:add',
       'recentFiles:get',
       'recentFiles:remove',
       'app:getPath',
@@ -93,4 +94,3 @@ declare global {
     electronAPI: ElectronAPI;
   }
 }
-
