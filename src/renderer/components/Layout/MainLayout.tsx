@@ -169,15 +169,24 @@ const MainLayout: React.FC = React.memo(() => {
 
   // 파일 저장 (Cmd+S)
   const handleSave = useCallback(async () => {
+    // 편집 중인 파일명이 있다면 먼저 저장
+    let newFileName = currentFileName;
+    if (sidebarRef.current) {
+      const committedName = sidebarRef.current.commitFileName();
+      if (committedName) {
+        newFileName = committedName;
+      }
+    }
+
     if (currentFilePath) {
       // 파일명이 변경되었는지 확인
       const currentPathFileName = currentFilePath.split('/').pop() || '';
-      const hasFileNameChanged = currentFileName !== currentPathFileName;
+      const hasFileNameChanged = newFileName !== currentPathFileName;
 
       if (hasFileNameChanged) {
         // 파일명이 변경된 경우 - 새로운 경로로 저장
         const directory = currentFilePath.substring(0, currentFilePath.lastIndexOf('/'));
-        const newFilePath = `${directory}/${currentFileName}`;
+        const newFilePath = `${directory}/${newFileName}`;
 
         const result = await saveFile(newFilePath, markdownText);
         if (result.success) {
@@ -208,7 +217,7 @@ const MainLayout: React.FC = React.memo(() => {
       }
     } else {
       // 새 파일 - Save As
-      const result = await saveFileAs(markdownText);
+      const result = await saveFileAs(markdownText, newFileName);
       if (result.success && result.filePath) {
         setCurrentFilePath(result.filePath);
         const fileName = result.filePath.split('/').pop() || FILE_CONFIG.DEFAULT_FILENAME;
@@ -385,7 +394,16 @@ const MainLayout: React.FC = React.memo(() => {
 
   // 다른 이름으로 저장 (Cmd+Shift+S)
   const handleSaveAs = useCallback(async () => {
-    const result = await saveFileAs(markdownText, currentFileName);
+    // 편집 중인 파일명이 있다면 먼저 저장
+    let newFileName = currentFileName;
+    if (sidebarRef.current) {
+      const committedName = sidebarRef.current.commitFileName();
+      if (committedName) {
+        newFileName = committedName;
+      }
+    }
+
+    const result = await saveFileAs(markdownText, newFileName);
     if (result.success && result.filePath) {
       setCurrentFilePath(result.filePath);
       const fileName = result.filePath.split('/').pop() || FILE_CONFIG.DEFAULT_FILENAME;

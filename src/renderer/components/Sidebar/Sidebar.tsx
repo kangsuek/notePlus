@@ -1,4 +1,11 @@
-import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+  useCallback,
+} from 'react';
 import { getFileNameError } from '@renderer/utils/fileNameValidator';
 import { FILE_CONFIG } from '@renderer/constants';
 import type { SidebarProps, SidebarRef } from '@renderer/types';
@@ -97,21 +104,45 @@ const Sidebar = React.memo(
         };
       }, []);
 
-      // 외부에서 최근 파일 목록 새로고침을 위한 ref 노출
-      useImperativeHandle(
-        ref,
-        () => ({
-          refreshRecentFiles: loadRecentFiles,
-        }),
-        []
-      );
-
       const loadRecentFiles = async () => {
         const result = await getRecentFiles();
         if (result.success && result.files) {
           setRecentFiles(result.files);
         }
       };
+
+      const handleFileNameSave = useCallback((): string | null => {
+        const trimmed = editedFileName.trim();
+
+        // 파일명 검증
+        const error = getFileNameError(trimmed);
+        if (error) {
+          setFileNameError(error);
+          return null; // 편집 모드 유지
+        }
+
+        // 유효한 파일명이고 변경되었으면 저장
+        if (trimmed && trimmed !== currentFileName) {
+          onFileNameChange?.(trimmed);
+          setFileNameError(null);
+          setIsEditingFileName(false);
+          return trimmed; // 변경된 파일명 반환
+        }
+
+        setFileNameError(null);
+        setIsEditingFileName(false);
+        return null; // 변경 없음
+      }, [editedFileName, currentFileName, onFileNameChange]);
+
+      // 외부에서 최근 파일 목록 새로고침 및 파일명 커밋을 위한 ref 노출
+      useImperativeHandle(
+        ref,
+        () => ({
+          refreshRecentFiles: loadRecentFiles,
+          commitFileName: handleFileNameSave,
+        }),
+        [handleFileNameSave]
+      );
 
       const handleToggle = () => {
         const newCollapsedState = !isCollapsed;
@@ -148,25 +179,6 @@ const Sidebar = React.memo(
 
       const handleFileNameClick = () => {
         setIsEditingFileName(true);
-      };
-
-      const handleFileNameSave = () => {
-        const trimmed = editedFileName.trim();
-
-        // 파일명 검증
-        const error = getFileNameError(trimmed);
-        if (error) {
-          setFileNameError(error);
-          return; // 편집 모드 유지
-        }
-
-        // 유효한 파일명이고 변경되었으면 저장
-        if (trimmed && trimmed !== currentFileName) {
-          onFileNameChange?.(trimmed);
-        }
-
-        setFileNameError(null);
-        setIsEditingFileName(false);
       };
 
       const handleFileNameCancel = () => {

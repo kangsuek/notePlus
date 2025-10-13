@@ -65,6 +65,7 @@ export interface SidebarProps {
 
 export interface SidebarRef {
   refreshRecentFiles: () => void;
+  commitFileName: () => string | null; // 편집 중인 파일명을 저장하고 반환 (변경된 경우 새 파일명, 아니면 null)
 }
 
 /**
