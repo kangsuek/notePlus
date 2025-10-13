@@ -8,7 +8,7 @@
  */
 export const EDITOR_CONFIG = {
   /** Tab 키 입력 시 삽입할 스페이스 수 */
-  TAB_SIZE: 2,
+  TAB_SIZE: 4,
   /** onChange 이벤트 디바운싱 기본 시간 (ms) */
   DEBOUNCE_MS: 300,
   /** 최대 라인 수 제한 (성능 고려) */

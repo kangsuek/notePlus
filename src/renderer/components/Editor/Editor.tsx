@@ -4,6 +4,12 @@ import { EDITOR_CONFIG, MARKDOWN_SYNTAX } from '@renderer/constants';
 import type { EditorProps } from '@renderer/types';
 import { calculateLineWraps } from '@renderer/utils/lineWrapCalculator';
 import { calculateExpression } from '@renderer/utils/calculateExpression';
+import {
+  parseMarkdownList,
+  isEmptyListItem,
+  generateNextListItem,
+  removeEmptyListItem,
+} from '@renderer/utils/markdownListUtils';
 import './Editor.css';
 
 const Editor: React.FC<EditorProps> = React.memo(
@@ -14,6 +20,7 @@ const Editor: React.FC<EditorProps> = React.memo(
     debounceMs = 0,
     onScroll,
     onTextareaRef,
+    fileName,
   }) => {
     const [text, setText] = useState(controlledValue || '');
     const [currentLine, setCurrentLine] = useState(1);
@@ -106,9 +113,9 @@ const Editor: React.FC<EditorProps> = React.memo(
       updateCursorPosition();
     }, [updateCursorPosition]);
 
-    // Tab 키 처리: 스페이스 삽입
+    // Tab 키 처리: 단일 커서는 스페이스 삽입, 여러 줄 선택은 블록 들여쓰기
     const handleTab = useCallback(
-      (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      (e: React.KeyboardEvent<HTMLTextAreaElement>, isShiftTab = false) => {
         e.preventDefault();
         const textarea = textareaRef.current;
         if (!textarea) return;
@@ -117,58 +124,192 @@ const Editor: React.FC<EditorProps> = React.memo(
         const end = textarea.selectionEnd;
         const spaces = ' '.repeat(EDITOR_CONFIG.TAB_SIZE);
 
-        const newValue = text.substring(0, start) + spaces + text.substring(end);
-        setText(newValue);
+        // 단일 커서 위치 (선택 영역 없음)
+        if (start === end) {
+          if (isShiftTab) {
+            // Shift+Tab: 현재 줄의 들여쓰기 해제
+            const textBeforeCursor = text.substring(0, start);
+            const lines = textBeforeCursor.split('\n');
+            const currentLineStart = textBeforeCursor.length - (lines[lines.length - 1]?.length || 0);
+            const nextNewlinePos = text.indexOf('\n', end);
+            const currentLineEnd = nextNewlinePos === -1 ? text.length : nextNewlinePos;
+            const currentLineText = text.substring(currentLineStart, currentLineEnd);
 
-        // 커서 위치 조정
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + spaces.length;
-          updateCursorPosition();
-        }, 0);
+            // 줄 앞의 공백 개수 계산 (최대 TAB_SIZE만큼)
+            const leadingSpaces = currentLineText.match(/^ {1,4}/)?.[0] || '';
+            if (leadingSpaces.length === 0) return;
 
-        // onChange 호출
-        if (onChange) {
-          onChange(newValue);
-        }
-      },
-      [text, onChange, updateCursorPosition]
-    );
+            const newLineText = currentLineText.substring(leadingSpaces.length);
+            const newValue =
+              text.substring(0, currentLineStart) + newLineText + text.substring(currentLineEnd);
+            setText(newValue);
 
-    // Enter 키 처리: 자동 들여쓰기
-    const handleEnter = useCallback(
-      (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
+            // 커서 위치 조정
+            setTimeout(() => {
+              const newCursorPos = Math.max(currentLineStart, start - leadingSpaces.length);
+              textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+              updateCursorPosition();
+            }, 0);
 
-        const start = textarea.selectionStart;
-        const textBeforeEnter = text.substring(0, start);
-        const lines = textBeforeEnter.split('\n');
-        const currentLineText = lines[lines.length - 1] || '';
+            if (onChange) {
+              onChange(newValue);
+            }
+          } else {
+            // Tab: 스페이스 삽입
+            const newValue = text.substring(0, start) + spaces + text.substring(end);
+            setText(newValue);
 
-        // 현재 줄의 들여쓰기 감지
-        const indentMatch = currentLineText.match(/^(\s+)/);
-        const indent = indentMatch?.[1] || '';
+            // 커서 위치 조정
+            setTimeout(() => {
+              textarea.selectionStart = textarea.selectionEnd = start + spaces.length;
+              updateCursorPosition();
+            }, 0);
 
-        // 들여쓰기가 있는 경우에만 처리
-        if (indent && indent.length > 0) {
-          e.preventDefault();
-          const end = textarea.selectionEnd;
-          const newValue = text.substring(0, start) + '\n' + indent + text.substring(end);
+            if (onChange) {
+              onChange(newValue);
+            }
+          }
+        } else {
+          // 여러 줄 선택: 블록 들여쓰기/해제
+          const selectedText = text.substring(start, end);
+          const textBeforeSelection = text.substring(0, start);
+          const textAfterSelection = text.substring(end);
+
+          // 선택 영역의 시작과 끝 줄 찾기
+          const linesBeforeSelection = textBeforeSelection.split('\n');
+          const firstLineStart =
+            textBeforeSelection.length - (linesBeforeSelection[linesBeforeSelection.length - 1]?.length || 0);
+
+          // 선택 영역 포함 전체 줄 추출
+          const fullSelectionEnd = text.indexOf('\n', end);
+          const lastLineEnd = fullSelectionEnd === -1 ? text.length : fullSelectionEnd;
+          const fullSelectedText = text.substring(firstLineStart, lastLineEnd);
+          const lines = fullSelectedText.split('\n');
+
+          let newLines: string[];
+          if (isShiftTab) {
+            // Shift+Tab: 각 줄의 들여쓰기 해제 (최대 TAB_SIZE만큼)
+            newLines = lines.map((line) => {
+              const leadingSpaces = line.match(/^ {1,4}/)?.[0] || '';
+              return leadingSpaces.length > 0 ? line.substring(leadingSpaces.length) : line;
+            });
+          } else {
+            // Tab: 각 줄에 들여쓰기 추가
+            newLines = lines.map((line) => spaces + line);
+          }
+
+          const newSelectedText = newLines.join('\n');
+          const newValue = text.substring(0, firstLineStart) + newSelectedText + text.substring(lastLineEnd);
           setText(newValue);
 
-          // 커서 위치 조정
+          // 선택 영역 유지
           setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + 1 + indent.length;
+            textarea.selectionStart = firstLineStart;
+            textarea.selectionEnd = firstLineStart + newSelectedText.length;
             updateCursorPosition();
           }, 0);
 
-          // onChange 호출
           if (onChange) {
             onChange(newValue);
           }
         }
       },
       [text, onChange, updateCursorPosition]
+    );
+
+    // Enter 키 처리: 마크다운 목록 자동 생성 또는 들여쓰기 유지
+    const handleEnter = useCallback(
+      (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const textBeforeEnter = text.substring(0, start);
+        const lines = textBeforeEnter.split('\n');
+        const currentLineText = lines[lines.length - 1] || '';
+
+        // 마크다운 파일인지 확인
+        const isMarkdown =
+          fileName?.endsWith('.md') || fileName?.endsWith('.markdown') || !fileName;
+
+        if (isMarkdown) {
+          // 마크다운 모드: 목록 자동 생성
+          const pattern = parseMarkdownList(currentLineText);
+
+          if (pattern.type !== 'none') {
+            e.preventDefault();
+
+            // 빈 목록 항목 → 목록 종료
+            if (isEmptyListItem(pattern)) {
+
+              // 현재 줄의 시작과 끝 위치 계산
+              const currentLineStart = textBeforeEnter.length - currentLineText.length;
+              const nextNewlinePos = text.indexOf('\n', end);
+              const currentLineEnd = nextNewlinePos === -1 ? text.length : nextNewlinePos;
+
+              // 빈 목록 항목 제거하고 개행 추가
+              const { newText, cursorPos } = removeEmptyListItem(
+                text,
+                currentLineStart,
+                currentLineEnd
+              );
+
+              // 개행 문자 추가
+              const finalText = newText.substring(0, cursorPos) + '\n' + newText.substring(cursorPos);
+
+              setText(finalText);
+
+              setTimeout(() => {
+                textarea.selectionStart = textarea.selectionEnd = cursorPos + 1;
+                updateCursorPosition();
+              }, 0);
+
+              if (onChange) {
+                onChange(finalText);
+              }
+              return;
+            }
+
+            // 다음 목록 항목 생성
+            const nextItem = generateNextListItem(pattern);
+            const newValue = text.substring(0, start) + nextItem + text.substring(end);
+
+            setText(newValue);
+
+            setTimeout(() => {
+              const newCursorPos = start + nextItem.length;
+              textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+              updateCursorPosition();
+            }, 0);
+
+            if (onChange) {
+              onChange(newValue);
+            }
+            return;
+          }
+        }
+
+        // 기본 모드: 들여쓰기만 유지
+        const indentMatch = currentLineText.match(/^(\s+)/);
+        const indent = indentMatch?.[1] || '';
+
+        if (indent && indent.length > 0) {
+          e.preventDefault();
+          const newValue = text.substring(0, start) + '\n' + indent + text.substring(end);
+          setText(newValue);
+
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + 1 + indent.length;
+            updateCursorPosition();
+          }, 0);
+
+          if (onChange) {
+            onChange(newValue);
+          }
+        }
+      },
+      [text, onChange, updateCursorPosition, fileName]
     );
 
     // 단축키 처리: Cmd+B, Cmd+I, Cmd+K
@@ -305,7 +446,7 @@ const Editor: React.FC<EditorProps> = React.memo(
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Tab') {
-          handleTab(e);
+          handleTab(e, e.shiftKey);
         } else if (e.key === 'Enter') {
           handleEnter(e);
         } else if (e.key === '=') {

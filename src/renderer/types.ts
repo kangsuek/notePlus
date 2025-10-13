@@ -36,6 +36,7 @@ export interface EditorProps {
   debounceMs?: number;
   onScroll?: (event: React.UIEvent<HTMLTextAreaElement>) => void;
   onTextareaRef?: (ref: HTMLTextAreaElement | null) => void;
+  fileName?: string; // 파일명 (마크다운 기능 활성화 판별용)
 }
 
 /**

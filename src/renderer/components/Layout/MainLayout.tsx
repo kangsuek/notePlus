@@ -557,6 +557,7 @@ const MainLayout: React.FC = React.memo(() => {
               onTextareaRef={(ref) => {
                 editorTextareaRef.current = ref;
               }}
+              fileName={currentFileName}
             />
           </Panel>
           {finalShowPreview && (

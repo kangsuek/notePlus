@@ -98,15 +98,15 @@ describe('Editor', () => {
 
   // 3.5 에디터 UX 개선 테스트
   describe('Tab key handling', () => {
-    it('should insert spaces when Tab key is pressed', () => {
+    it('should insert 4 spaces when Tab key is pressed at single cursor', () => {
       const { container } = render(<Editor />);
       const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
 
       // Tab 키 입력
       fireEvent.keyDown(textarea, { key: 'Tab', code: 'Tab' });
 
-      // 2 스페이스가 삽입되어야 함
-      expect(textarea.value).toBe('  ');
+      // 4 스페이스가 삽입되어야 함
+      expect(textarea.value).toBe('    ');
     });
 
     it('should not insert Tab character', () => {
@@ -132,13 +132,98 @@ describe('Editor', () => {
       // Tab 키 입력
       fireEvent.keyDown(textarea, { key: 'Tab', code: 'Tab' });
 
-      expect(textarea.value).toBe('He  llo');
+      expect(textarea.value).toBe('He    llo');
+    });
+
+    it('should indent multiple selected lines with Tab', () => {
+      const { container } = render(<Editor />);
+      const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+      // 여러 줄 입력
+      fireEvent.change(textarea, { target: { value: 'Line 1\nLine 2\nLine 3' } });
+
+      // 모든 줄 선택
+      textarea.setSelectionRange(0, 20);
+
+      // Tab 키 입력
+      fireEvent.keyDown(textarea, { key: 'Tab', code: 'Tab' });
+
+      // 각 줄에 4 스페이스가 추가되어야 함
+      expect(textarea.value).toBe('    Line 1\n    Line 2\n    Line 3');
+    });
+
+    it('should unindent multiple selected lines with Shift+Tab', () => {
+      const { container } = render(<Editor />);
+      const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+      // 들여쓰기된 여러 줄 입력
+      fireEvent.change(textarea, { target: { value: '    Line 1\n    Line 2\n    Line 3' } });
+
+      // 모든 줄 선택
+      textarea.setSelectionRange(0, 32);
+
+      // Shift+Tab 키 입력
+      fireEvent.keyDown(textarea, { key: 'Tab', code: 'Tab', shiftKey: true });
+
+      // 각 줄의 들여쓰기가 4 스페이스 제거되어야 함
+      expect(textarea.value).toBe('Line 1\nLine 2\nLine 3');
+    });
+
+    it('should unindent current line with Shift+Tab at single cursor', () => {
+      const { container } = render(<Editor />);
+      const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+      // 들여쓰기된 텍스트 입력
+      fireEvent.change(textarea, { target: { value: '    Hello' } });
+
+      // 커서를 줄 어딘가에 위치
+      textarea.setSelectionRange(5, 5);
+
+      // Shift+Tab 키 입력
+      fireEvent.keyDown(textarea, { key: 'Tab', code: 'Tab', shiftKey: true });
+
+      // 4 스페이스가 제거되어야 함
+      expect(textarea.value).toBe('Hello');
+    });
+
+    it('should handle partial indentation removal with Shift+Tab', () => {
+      const { container } = render(<Editor />);
+      const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+      // 2 스페이스만 들여쓰기된 텍스트 입력
+      fireEvent.change(textarea, { target: { value: '  Hello' } });
+
+      // 커서를 줄 어딘가에 위치
+      textarea.setSelectionRange(3, 3);
+
+      // Shift+Tab 키 입력
+      fireEvent.keyDown(textarea, { key: 'Tab', code: 'Tab', shiftKey: true });
+
+      // 2 스페이스만 제거되어야 함
+      expect(textarea.value).toBe('Hello');
+    });
+
+    it('should do nothing with Shift+Tab on non-indented line', () => {
+      const { container } = render(<Editor />);
+      const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+      // 들여쓰기 없는 텍스트 입력
+      fireEvent.change(textarea, { target: { value: 'Hello' } });
+
+      // 커서를 줄 어딘가에 위치
+      textarea.setSelectionRange(2, 2);
+
+      // Shift+Tab 키 입력
+      fireEvent.keyDown(textarea, { key: 'Tab', code: 'Tab', shiftKey: true });
+
+      // 값이 변하지 않아야 함
+      expect(textarea.value).toBe('Hello');
     });
   });
 
   describe('Auto indentation', () => {
-    it('should maintain indentation on Enter key', () => {
-      const { container } = render(<Editor />);
+    it('should maintain indentation on Enter key for .txt files', () => {
+      const { container } = render(<Editor fileName="test.txt" />);
       const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
 
       // 들여쓰기가 있는 텍스트 입력
@@ -155,7 +240,7 @@ describe('Editor', () => {
     });
 
     it('should handle multiple levels of indentation', () => {
-      const { container } = render(<Editor />);
+      const { container } = render(<Editor fileName="test.txt" />);
       const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
 
       fireEvent.change(textarea, { target: { value: '    Nested' } });
@@ -167,7 +252,7 @@ describe('Editor', () => {
     });
 
     it('should not add extra indentation for line without indent', () => {
-      const { container } = render(<Editor />);
+      const { container } = render(<Editor fileName="test.txt" />);
       const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
 
       fireEvent.change(textarea, { target: { value: 'No indent' } });
@@ -178,6 +263,248 @@ describe('Editor', () => {
       // 들여쓰기가 없으면 preventDefault가 호출되지 않음
       // 따라서 값은 변하지 않음 (브라우저 기본 동작으로 처리됨)
       expect(textarea.value).toBe('No indent');
+    });
+  });
+
+  describe('Markdown list auto-continuation (.md files)', () => {
+    describe('Unordered lists', () => {
+      it('should auto-continue unordered list with -', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '- First item' } });
+        textarea.setSelectionRange(12, 12);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('- First item\n- ');
+      });
+
+      it('should auto-continue unordered list with *', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '* Item' } });
+        textarea.setSelectionRange(6, 6);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('* Item\n* ');
+      });
+
+      it('should auto-continue unordered list with +', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '+ Item' } });
+        textarea.setSelectionRange(6, 6);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('+ Item\n+ ');
+      });
+
+      it('should preserve indentation in nested list', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '  - Nested item' } });
+        textarea.setSelectionRange(15, 15);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('  - Nested item\n  - ');
+      });
+
+      it('should exit list on empty item', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '- ' } });
+        textarea.setSelectionRange(2, 2);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('\n');
+      });
+    });
+
+    describe('Ordered lists', () => {
+      it('should auto-continue and increment ordered list', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '1. First item' } });
+        textarea.setSelectionRange(13, 13);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('1. First item\n2. ');
+      });
+
+      it('should increment from any number', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '5. Fifth item' } });
+        textarea.setSelectionRange(13, 13);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('5. Fifth item\n6. ');
+      });
+
+      it('should preserve indentation and increment', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '    2. Nested' } });
+        textarea.setSelectionRange(14, 14);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('    2. Nested\n    3. ');
+      });
+
+      it('should exit list on empty item', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '1. ' } });
+        textarea.setSelectionRange(3, 3);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('\n');
+      });
+    });
+
+    describe('Checkboxes', () => {
+      it('should auto-continue unchecked checkbox', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '- [ ] Todo item' } });
+        textarea.setSelectionRange(15, 15);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('- [ ] Todo item\n- [ ] ');
+      });
+
+      it('should auto-continue with unchecked box even if previous was checked', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '- [x] Done item' } });
+        textarea.setSelectionRange(15, 15);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('- [x] Done item\n- [ ] ');
+      });
+
+      it('should exit checkbox list on empty item', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '- [ ] ' } });
+        textarea.setSelectionRange(6, 6);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('\n');
+      });
+    });
+
+    describe('Blockquotes', () => {
+      it('should auto-continue blockquote', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '> Quote text' } });
+        textarea.setSelectionRange(12, 12);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('> Quote text\n> ');
+      });
+
+      it('should preserve indentation in nested blockquote', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '  > Nested quote' } });
+        textarea.setSelectionRange(16, 16);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('  > Nested quote\n  > ');
+      });
+
+      it('should exit blockquote on empty line', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '> ' } });
+        textarea.setSelectionRange(2, 2);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('\n');
+      });
+    });
+
+    describe('File type detection', () => {
+      it('should enable markdown features for .md files', () => {
+        const { container } = render(<Editor fileName="test.md" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '- Item' } });
+        textarea.setSelectionRange(6, 6);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('- Item\n- ');
+      });
+
+      it('should enable markdown features for .markdown files', () => {
+        const { container } = render(<Editor fileName="test.markdown" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '- Item' } });
+        textarea.setSelectionRange(6, 6);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        expect(textarea.value).toBe('- Item\n- ');
+      });
+
+      it('should NOT enable markdown features for .txt files', () => {
+        const { container } = render(<Editor fileName="test.txt" />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '- Item' } });
+        textarea.setSelectionRange(6, 6);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        // 마크다운 기능 비활성화 → 일반 Enter 동작 (값 변화 없음)
+        expect(textarea.value).toBe('- Item');
+      });
+
+      it('should enable markdown features when no fileName is provided', () => {
+        const { container } = render(<Editor />);
+        const textarea = container.querySelector('.editor-textarea') as HTMLTextAreaElement;
+
+        fireEvent.change(textarea, { target: { value: '- Item' } });
+        textarea.setSelectionRange(6, 6);
+
+        fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+
+        // fileName이 없으면 마크다운 모드로 동작
+        expect(textarea.value).toBe('- Item\n- ');
+      });
     });
   });
 
