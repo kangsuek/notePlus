@@ -27,3 +27,9 @@
 **Complete + 2 Bug Fixes**: Changed "Recent Files" to "Recent Documents" with dynamic menu. Added Settings dialog (Cmd+,). Fixed: (1) CSS variables for proper style override, (2) Direct callback instead of IPC for instant apply.
 Files: SettingsManager.ts, Preferences (with onSettingsChange callback), Editor with CSS variables
 Status: Settings apply instantly via callback. Ready for testing.
+
+### 6.3 StatusBar Advanced Features - Detailed Plan (2025-10-14)
+
+**Plan Created**: Comprehensive implementation plan for StatusBar advanced features. Analysis shows encoding detection already implemented (encodingDetector.ts, 12 tests passing). Remaining work: (1) Manual encoding change UI, (2) Performance optimization with debouncing, (3) Confidence indicators.
+File: .claude/docs/tasks/6.3-statusbar-advanced.md (22개 체크리스트, 1.5일 예상)
+Next: Implement encoding dropdown and manual encoding change (Task 1, 0.5 day).
