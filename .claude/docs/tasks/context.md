@@ -17,3 +17,13 @@
 ### Development Plan Analysis (2025-10-13)
 
 **Comprehensive Analysis Completed**: Generated detailed development plan analyzing current project state, identifying next task (6.3: StatusBar Advanced Features), and providing actionable implementation roadmap with test coverage improvement strategies to achieve 70%+ branch coverage target.
+
+### File Encoding Issue Analysis (2025-10-13)
+
+**Analysis Completed**: Created comprehensive plan to fix Windows 11 .txt file encoding issue. Root cause identified as hardcoded UTF-8 encoding in file reading. Solution involves jschardet library integration for automatic encoding detection, modifying file:read IPC handler to detect and decode properly, and updating StatusBar to display detected encoding. Plan includes 5 implementation phases with detailed testing strategy.
+
+### Recent Documents Menu & Settings Feature (2025-10-14)
+
+**Complete + 2 Bug Fixes**: Changed "Recent Files" to "Recent Documents" with dynamic menu. Added Settings dialog (Cmd+,). Fixed: (1) CSS variables for proper style override, (2) Direct callback instead of IPC for instant apply.
+Files: SettingsManager.ts, Preferences (with onSettingsChange callback), Editor with CSS variables
+Status: Settings apply instantly via callback. Ready for testing.

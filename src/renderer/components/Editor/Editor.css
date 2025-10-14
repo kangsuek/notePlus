@@ -52,15 +52,15 @@
   color: var(--text-secondary);
   padding: 16px 12px;
   text-align: right;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-  font-size: 14px;
+  font-family: var(--editor-font-family, 'SF Mono', Monaco, 'Cascadia Code', monospace);
+  font-size: var(--editor-font-size, 14px);
   line-height: 1.6;
   user-select: none;
   min-width: 50px;
 }
 
 .line-number {
-  height: 22.4px; /* 14px * 1.6 line-height */
+  height: calc(var(--editor-font-size, 14px) * 1.6); /* font-size * line-height */
   padding: 0 8px;
   margin: 0 -8px;
   transition:
@@ -81,8 +81,8 @@
   border: none;
   outline: none;
   resize: none;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-  font-size: 14px;
+  font-family: var(--editor-font-family, 'SF Mono', Monaco, 'Cascadia Code', monospace);
+  font-size: var(--editor-font-size, 14px);
   line-height: 1.6;
   background-color: var(--background-primary);
   color: var(--text-primary);

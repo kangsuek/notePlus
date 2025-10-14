@@ -5,6 +5,7 @@ import Sidebar from '../Sidebar/Sidebar';
 import Editor from '../Editor/Editor';
 import Preview from '../Preview/Preview';
 import StatusBar from '../StatusBar/StatusBar';
+import Preferences from '../Preferences/Preferences';
 import {
   UI_CONFIG,
   FILE_CONFIG,
@@ -24,11 +25,18 @@ const MainLayout: React.FC = React.memo(() => {
   const [isDirty, setIsDirty] = useState(false);
   const [currentFileName, setCurrentFileName] = useState<string>(FILE_CONFIG.DEFAULT_FILENAME);
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+  const [currentEncoding, setCurrentEncoding] = useState<string>('UTF-8'); // 현재 파일 인코딩
   const [showStatus, setShowStatus] = useState(false);
   const [markdownText, setMarkdownText] = useState(''); // 마크다운 텍스트 상태
   const [userTogglePreview, setUserTogglePreview] = useState<boolean | null>(null); // 사용자 토글 상태
   const [isDragOver, setIsDragOver] = useState(false); // 드래그 오버 상태
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // 사이드바 접기 상태
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false); // 설정 창 열림 상태
+  const [editorSettings, setEditorSettings] = useState({
+    showLineNumbers: true,
+    fontFamily: 'Monaco, Menlo, "Courier New", monospace',
+    fontSize: 14,
+  });
   const statusTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 스크롤 동기화를 위한 ref
@@ -242,6 +250,7 @@ const MainLayout: React.FC = React.memo(() => {
       setCurrentFilePath(result.filePath);
       const fileName = result.filePath.split('/').pop() || FILE_CONFIG.DEFAULT_FILENAME;
       setCurrentFileName(fileName);
+      setCurrentEncoding(result.encoding || 'UTF-8');
       setIsDirty(false);
 
       // 파일을 열 때 사용자 토글 상태 리셋 (파일 타입에 따라 자동 결정)
@@ -352,6 +361,7 @@ const MainLayout: React.FC = React.memo(() => {
         setCurrentFilePath(filePath);
         const fileName = filePath.split('/').pop() || FILE_CONFIG.DEFAULT_FILENAME;
         setCurrentFileName(fileName);
+        setCurrentEncoding(result.encoding || 'UTF-8');
         setIsDirty(false);
 
         // 파일을 열 때 사용자 토글 상태 리셋 (파일 타입에 따라 자동 결정)
@@ -448,6 +458,27 @@ const MainLayout: React.FC = React.memo(() => {
     };
   }, [handleNew, handleSave, handleSaveAs, handleOpen]);
 
+  // 설정 로드
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!window.electronAPI) return;
+
+      try {
+        const result = (await window.electronAPI.invoke('settings:get')) as {
+          success: boolean;
+          settings?: any;
+        };
+        if (result.success && result.settings) {
+          setEditorSettings(result.settings);
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
   // 메뉴 이벤트 리스너 (IPC)
   useEffect(() => {
     if (!window.electronAPI) return;
@@ -477,8 +508,19 @@ const MainLayout: React.FC = React.memo(() => {
       setIsSidebarCollapsed(!isSidebarCollapsed);
     });
 
+    // 메뉴 → 최근 문서 열기
+    window.electronAPI.on('menu:open-recent-file', (...args: unknown[]) => {
+      const filePath = args[0] as string;
+      handleFileOpen(filePath);
+    });
+
+    // 메뉴 → 환경설정
+    window.electronAPI.on('menu:preferences', () => {
+      setIsPreferencesOpen(true);
+    });
+
     // 정리: IPC 리스너 제거는 electron에서 자동으로 처리됨
-  }, [handleNew, handleOpen, handleSave, handleSaveAs, isSidebarCollapsed]);
+  }, [handleNew, handleOpen, handleSave, handleSaveAs, isSidebarCollapsed, handleFileOpen]);
 
   // 창 닫기 전 확인 (저장하지 않은 변경사항이 있을 경우)
   useEffect(() => {
@@ -576,6 +618,9 @@ const MainLayout: React.FC = React.memo(() => {
                 editorTextareaRef.current = ref;
               }}
               fileName={currentFileName}
+              showLineNumbers={editorSettings.showLineNumbers}
+              fontFamily={editorSettings.fontFamily}
+              fontSize={editorSettings.fontSize}
             />
           </Panel>
           {finalShowPreview && (
@@ -592,7 +637,17 @@ const MainLayout: React.FC = React.memo(() => {
           )}
         </PanelGroup>
       </div>
-      <StatusBar cursorPosition={cursorPosition} isDirty={isDirty} showStatus={showStatus} />
+      <StatusBar
+        cursorPosition={cursorPosition}
+        encoding={currentEncoding}
+        isDirty={isDirty}
+        showStatus={showStatus}
+      />
+      <Preferences
+        isOpen={isPreferencesOpen}
+        onClose={() => setIsPreferencesOpen(false)}
+        onSettingsChange={(newSettings) => setEditorSettings(newSettings)}
+      />
     </div>
   );
 });

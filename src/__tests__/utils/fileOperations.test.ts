@@ -100,7 +100,7 @@ describe('fileOperations', () => {
 
   describe('readFile', () => {
     it('should read file successfully', async () => {
-      const mockResult = { success: true, content: 'file content' };
+      const mockResult = { success: true, content: 'file content', encoding: 'UTF-8' };
       mockElectronAPI.invoke.mockResolvedValue(mockResult);
 
       const result = await readFile('/test/file.md');
@@ -180,7 +180,7 @@ describe('fileOperations', () => {
   describe('openFile', () => {
     it('should open file with dialog', async () => {
       const mockDialogResult = { canceled: false, filePaths: ['/test/file.md'] };
-      const mockReadResult = { success: true, content: 'file content' };
+      const mockReadResult = { success: true, content: 'file content', encoding: 'UTF-8' };
 
       mockElectronAPI.invoke
         .mockResolvedValueOnce(mockDialogResult)
@@ -193,6 +193,7 @@ describe('fileOperations', () => {
         success: true,
         filePath: '/test/file.md',
         content: 'file content',
+        encoding: 'UTF-8',
       });
     });
 
@@ -208,7 +209,7 @@ describe('fileOperations', () => {
 
     it('should handle read error', async () => {
       const mockDialogResult = { canceled: false, filePaths: ['/test/file.md'] };
-      const mockReadResult = { success: false, error: 'Read failed' };
+      const mockReadResult = { success: false, error: 'Read failed', encoding: 'UTF-8' };
 
       mockElectronAPI.invoke
         .mockResolvedValueOnce(mockDialogResult)
@@ -219,6 +220,7 @@ describe('fileOperations', () => {
       expect(result).toEqual({
         success: false,
         filePath: undefined,
+        encoding: 'UTF-8',
         error: 'Read failed',
       });
     });

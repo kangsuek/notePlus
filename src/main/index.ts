@@ -2,8 +2,11 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import { RecentFilesManager } from './RecentFilesManager';
+import { SettingsManager } from './SettingsManager';
 import { existsSync } from 'fs';
 import { setupMenu } from './menu';
+import { detectEncoding } from './utils/encodingDetector';
+import iconv from 'iconv-lite';
 
 // 개발 환경 확인
 const isDev = process.env.NODE_ENV === 'development';
@@ -13,6 +16,9 @@ let mainWindow: BrowserWindow | null = null;
 
 // 최근 파일 관리자
 const recentFilesManager = new RecentFilesManager();
+
+// 설정 관리자
+const settingsManager = new SettingsManager();
 
 // 최근 저장/열기 위치 기억
 let lastSavePath: string | undefined;
@@ -207,6 +213,8 @@ function setupIpcHandlers() {
       await fs.writeFile(filePath, content, 'utf-8');
       // 최근 파일 목록에 추가
       recentFilesManager.addFile(filePath);
+      // 메뉴 업데이트
+      updateMenu();
       return { success: true };
     } catch (error) {
       console.error('Failed to write file:', error);
@@ -220,10 +228,33 @@ function setupIpcHandlers() {
   // 파일 읽기
   ipcMain.handle('file:read', async (_event, filePath: string) => {
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
+      // Read file as binary buffer first
+      const buffer = await fs.readFile(filePath);
+
+      // Detect encoding
+      const encoding = detectEncoding(buffer);
+
+      // Decode buffer with detected encoding
+      let content: string;
+      try {
+        if (encoding === 'UTF-8' || encoding === 'UTF-16LE' || encoding === 'UTF-16BE') {
+          // Node.js native encodings
+          content = buffer.toString(encoding.toLowerCase() as BufferEncoding);
+        } else {
+          // Use iconv-lite for other encodings
+          content = iconv.decode(buffer, encoding);
+        }
+      } catch (decodeError) {
+        console.warn(`Failed to decode with ${encoding}, falling back to UTF-8:`, decodeError);
+        content = buffer.toString('utf-8');
+      }
+
       // 최근 파일 목록에 추가
       recentFilesManager.addFile(filePath);
-      return { success: true, content };
+      // 메뉴 업데이트
+      updateMenu();
+
+      return { success: true, content, encoding };
     } catch (error) {
       console.error('Failed to read file:', error);
       return {
@@ -237,6 +268,8 @@ function setupIpcHandlers() {
   ipcMain.handle('recentFiles:add', async (_event, filePath: string) => {
     try {
       recentFilesManager.addFile(filePath);
+      // 메뉴 업데이트
+      updateMenu();
       return { success: true };
     } catch (error) {
       console.error('Failed to add recent file:', error);
@@ -288,6 +321,56 @@ function setupIpcHandlers() {
       };
     }
   });
+
+  // 설정 조회
+  ipcMain.handle('settings:get', async () => {
+    try {
+      const settings = settingsManager.getSettings();
+      return { success: true, settings };
+    } catch (error) {
+      console.error('Failed to get settings:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  });
+
+  // 설정 저장
+  ipcMain.handle('settings:save', async (_event, settings) => {
+    try {
+      settingsManager.saveSettings(settings);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  });
+
+  // 설정 초기화
+  ipcMain.handle('settings:reset', async () => {
+    try {
+      settingsManager.resetSettings();
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to reset settings:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  });
+}
+
+/**
+ * 메뉴 업데이트 함수
+ */
+function updateMenu() {
+  const recentFiles = recentFilesManager.getFiles();
+  setupMenu(mainWindow, recentFiles);
 }
 
 /**
@@ -296,7 +379,7 @@ function setupIpcHandlers() {
 app.whenReady().then(() => {
   setupIpcHandlers();
   createWindow();
-  setupMenu(mainWindow); // 메뉴 설정
+  updateMenu(); // 메뉴 설정
 
   // macOS에서 dock 아이콘 클릭 시 윈도우 재생성
   app.on('activate', () => {

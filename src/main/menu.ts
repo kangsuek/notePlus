@@ -1,10 +1,11 @@
 import { Menu, BrowserWindow, MenuItemConstructorOptions, app, shell } from 'electron';
+import { RecentFile } from './RecentFilesManager';
 
 /**
  * 애플리케이션 메뉴 생성
  * macOS 네이티브 스타일 메뉴바
  */
-export function createMenu(mainWindow: BrowserWindow | null): Menu {
+export function createMenu(mainWindow: BrowserWindow | null, recentFiles: RecentFile[] = []): Menu {
   const isMac = process.platform === 'darwin';
 
   const template: MenuItemConstructorOptions[] = [
@@ -89,13 +90,21 @@ export function createMenu(mainWindow: BrowserWindow | null): Menu {
         },
         { type: 'separator' as const },
         {
-          label: '최근 파일',
-          submenu: [
-            {
-              label: '최근 파일 없음',
-              enabled: false,
-            },
-          ],
+          label: '최근 문서',
+          submenu:
+            recentFiles.length > 0
+              ? recentFiles.map((file) => ({
+                  label: file.displayName || file.path.split('/').pop() || file.path,
+                  click: () => {
+                    mainWindow?.webContents.send('menu:open-recent-file', file.path);
+                  },
+                }))
+              : [
+                  {
+                    label: '최근 문서 없음',
+                    enabled: false,
+                  },
+                ],
         },
         { type: 'separator' as const },
         ...(isMac
@@ -303,7 +312,7 @@ export function createMenu(mainWindow: BrowserWindow | null): Menu {
 /**
  * 메뉴 설정
  */
-export function setupMenu(mainWindow: BrowserWindow | null): void {
-  const menu = createMenu(mainWindow);
+export function setupMenu(mainWindow: BrowserWindow | null, recentFiles: RecentFile[] = []): void {
+  const menu = createMenu(mainWindow, recentFiles);
   Menu.setApplicationMenu(menu);
 }

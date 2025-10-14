@@ -37,6 +37,9 @@ export interface EditorProps {
   onScroll?: (event: React.UIEvent<HTMLTextAreaElement>) => void;
   onTextareaRef?: (ref: HTMLTextAreaElement | null) => void;
   fileName?: string; // 파일명 (마크다운 기능 활성화 판별용)
+  showLineNumbers?: boolean; // 줄 번호 표시 여부
+  fontFamily?: string; // 폰트 설정
+  fontSize?: number; // 폰트 크기
 }
 
 /**

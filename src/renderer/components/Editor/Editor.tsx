@@ -21,6 +21,9 @@ const Editor: React.FC<EditorProps> = React.memo(
     onScroll,
     onTextareaRef,
     fileName,
+    showLineNumbers = true,
+    fontFamily = 'Monaco, Menlo, "Courier New", monospace',
+    fontSize = 14,
   }) => {
     const [text, setText] = useState(controlledValue || '');
     const [currentLine, setCurrentLine] = useState(1);
@@ -508,15 +511,23 @@ const Editor: React.FC<EditorProps> = React.memo(
       }
     }, [onTextareaRef]);
 
+    // 폰트 설정을 위한 CSS 변수 생성
+    const editorStyle = {
+      '--editor-font-family': fontFamily,
+      '--editor-font-size': `${fontSize}px`,
+    } as React.CSSProperties;
+
     return (
-      <div className="editor-section" data-testid="editor-section">
+      <div className="editor-section" data-testid="editor-section" style={editorStyle}>
         <div className="editor-header">
           <h3>Editor</h3>
         </div>
         <div className="editor-container">
-          <div ref={lineNumbersRef} className="line-numbers-wrapper">
-            <LineNumbers lineWraps={lineWraps} currentLine={currentLine} />
-          </div>
+          {showLineNumbers && (
+            <div ref={lineNumbersRef} className="line-numbers-wrapper">
+              <LineNumbers lineWraps={lineWraps} currentLine={currentLine} />
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             className="editor-textarea"

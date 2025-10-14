@@ -28,6 +28,7 @@ const electronAPI: ElectronAPI = {
       'window:minimize',
       'window:maximize',
       'window:close',
+      'settings:changed',
     ];
 
     if (validChannels.includes(channel)) {
@@ -46,12 +47,14 @@ const electronAPI: ElectronAPI = {
       'menu:save-file',
       'menu:save-file-as',
       'menu:toggle-sidebar',
+      'menu:open-recent-file',
       'menu:find',
       'menu:replace',
       'menu:shortcuts',
       'menu:about',
       'menu:preferences',
       'theme:changed',
+      'settings:changed',
     ];
 
     if (validChannels.includes(channel)) {
@@ -69,6 +72,9 @@ const electronAPI: ElectronAPI = {
       'recentFiles:add',
       'recentFiles:get',
       'recentFiles:remove',
+      'settings:get',
+      'settings:save',
+      'settings:reset',
       'app:getPath',
     ];
 

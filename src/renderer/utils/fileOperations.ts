@@ -12,6 +12,7 @@ interface SaveFileResult {
 interface ReadFileResult {
   success: boolean;
   content?: string;
+  encoding?: string;
   error?: string;
 }
 
@@ -150,12 +151,18 @@ export async function readFile(filePath: string): Promise<ReadFileResult> {
     const result = await window.electronAPI.invoke('file:read', filePath);
 
     if (typeof result === 'object' && result !== null && 'success' in result) {
-      const readResult = result as { success: boolean; content?: string; error?: string };
+      const readResult = result as {
+        success: boolean;
+        content?: string;
+        encoding?: string;
+        error?: string;
+      };
 
       if (readResult.success && readResult.content !== undefined) {
         return {
           success: true,
           content: readResult.content,
+          encoding: readResult.encoding || 'UTF-8',
         };
       }
 
@@ -201,9 +208,11 @@ export async function saveFileAs(
 
 /**
  * 파일 열기 (다이얼로그 + 읽기)
- * @returns 파일 내용 및 경로
+ * @returns 파일 내용, 경로, 인코딩
  */
-export async function openFile(): Promise<ReadFileResult & { filePath?: string }> {
+export async function openFile(): Promise<
+  ReadFileResult & { filePath?: string; encoding?: string }
+> {
   const filePath = await showOpenDialog();
 
   if (!filePath) {
@@ -218,6 +227,7 @@ export async function openFile(): Promise<ReadFileResult & { filePath?: string }
   return {
     ...result,
     filePath: result.success ? filePath : undefined,
+    encoding: result.encoding || 'UTF-8',
   };
 }
 
