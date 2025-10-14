@@ -9,6 +9,9 @@ const StatusBar: React.FC<StatusBarProps> = React.memo(
     isDirty = false,
     showStatus = false,
   }) => {
+    // EUC-KR을 ANSI로 표시 변환
+    const displayEncoding = encoding === 'EUC-KR' || encoding === 'CP949' ? 'ANSI' : encoding;
+
     return (
       <div className="status-bar" data-testid="status-bar" role="status" aria-live="polite">
         <div className="status-left">
@@ -28,8 +31,8 @@ const StatusBar: React.FC<StatusBarProps> = React.memo(
               {isDirty ? '수정됨' : '저장됨'}
             </span>
           )}
-          <span className="status-encoding" aria-label={`파일 인코딩: ${encoding}`}>
-            {encoding}
+          <span className="status-encoding" aria-label={`파일 인코딩: ${displayEncoding}`}>
+            {displayEncoding}
           </span>
         </div>
       </div>

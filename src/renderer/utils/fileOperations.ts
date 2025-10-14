@@ -93,9 +93,14 @@ export async function showOpenDialog(): Promise<string | null> {
  * 파일에 내용 저장
  * @param filePath 파일 경로
  * @param content 저장할 내용
+ * @param encoding 파일 인코딩 (기본값: UTF-8)
  * @returns 성공 여부 및 에러 메시지
  */
-export async function saveFile(filePath: string, content: string): Promise<SaveFileResult> {
+export async function saveFile(
+  filePath: string,
+  content: string,
+  encoding: string = 'UTF-8'
+): Promise<SaveFileResult> {
   if (!window.electronAPI) {
     return {
       success: false,
@@ -104,7 +109,7 @@ export async function saveFile(filePath: string, content: string): Promise<SaveF
   }
 
   try {
-    const result = await window.electronAPI.invoke('file:write', filePath, content);
+    const result = await window.electronAPI.invoke('file:write', filePath, content, encoding);
 
     if (typeof result === 'object' && result !== null && 'success' in result) {
       const writeResult = result as { success: boolean; error?: string };
@@ -188,11 +193,13 @@ export async function readFile(filePath: string): Promise<ReadFileResult> {
  * 파일 저장 (다이얼로그 + 저장)
  * @param content 저장할 내용
  * @param currentFileName 현재 파일명 (기본값으로 사용)
+ * @param encoding 파일 인코딩 (기본값: UTF-8)
  * @returns 성공 여부 및 파일 경로
  */
 export async function saveFileAs(
   content: string,
-  currentFileName?: string
+  currentFileName?: string,
+  encoding: string = 'UTF-8'
 ): Promise<SaveFileResult> {
   const filePath = await showSaveDialog(currentFileName);
 
@@ -203,7 +210,7 @@ export async function saveFileAs(
     };
   }
 
-  return await saveFile(filePath, content);
+  return await saveFile(filePath, content, encoding);
 }
 
 /**

@@ -196,7 +196,7 @@ const MainLayout: React.FC = React.memo(() => {
         const directory = currentFilePath.substring(0, currentFilePath.lastIndexOf('/'));
         const newFilePath = `${directory}/${newFileName}`;
 
-        const result = await saveFile(newFilePath, markdownText);
+        const result = await saveFile(newFilePath, markdownText, currentEncoding);
         if (result.success) {
           setCurrentFilePath(newFilePath);
           setIsDirty(false);
@@ -212,7 +212,7 @@ const MainLayout: React.FC = React.memo(() => {
         }
       } else {
         // 기존 파일에 저장
-        const result = await saveFile(currentFilePath, markdownText);
+        const result = await saveFile(currentFilePath, markdownText, currentEncoding);
         if (result.success) {
           setIsDirty(false);
           showStatusTemporarily();
@@ -225,7 +225,7 @@ const MainLayout: React.FC = React.memo(() => {
       }
     } else {
       // 새 파일 - Save As
-      const result = await saveFileAs(markdownText, newFileName);
+      const result = await saveFileAs(markdownText, newFileName, currentEncoding);
       if (result.success && result.filePath) {
         setCurrentFilePath(result.filePath);
         const fileName = result.filePath.split('/').pop() || FILE_CONFIG.DEFAULT_FILENAME;
@@ -240,7 +240,14 @@ const MainLayout: React.FC = React.memo(() => {
         refreshRecentFiles();
       }
     }
-  }, [currentFilePath, currentFileName, markdownText, showStatusTemporarily, refreshRecentFiles]);
+  }, [
+    currentFilePath,
+    currentFileName,
+    currentEncoding,
+    markdownText,
+    showStatusTemporarily,
+    refreshRecentFiles,
+  ]);
 
   // 파일 열기 (Cmd+O)
   const handleOpen = useCallback(async () => {
@@ -413,7 +420,7 @@ const MainLayout: React.FC = React.memo(() => {
       }
     }
 
-    const result = await saveFileAs(markdownText, newFileName);
+    const result = await saveFileAs(markdownText, newFileName, currentEncoding);
     if (result.success && result.filePath) {
       setCurrentFilePath(result.filePath);
       const fileName = result.filePath.split('/').pop() || FILE_CONFIG.DEFAULT_FILENAME;
@@ -424,7 +431,7 @@ const MainLayout: React.FC = React.memo(() => {
       // 저장된 파일에 따라 사용자 토글 상태 리셋 (파일 타입에 따라 자동 결정)
       setUserTogglePreview(null);
     }
-  }, [markdownText, currentFileName, showStatusTemporarily]);
+  }, [markdownText, currentFileName, currentEncoding, showStatusTemporarily]);
 
   // 키보드 단축키 처리
   useEffect(() => {

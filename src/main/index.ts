@@ -208,22 +208,58 @@ function setupIpcHandlers() {
   });
 
   // 파일 저장
-  ipcMain.handle('file:write', async (_event, filePath: string, content: string) => {
-    try {
-      await fs.writeFile(filePath, content, 'utf-8');
-      // 최근 파일 목록에 추가
-      recentFilesManager.addFile(filePath);
-      // 메뉴 업데이트
-      updateMenu();
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to write file:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+  ipcMain.handle(
+    'file:write',
+    async (_event, filePath: string, content: string, encoding: string = 'UTF-8') => {
+      try {
+        console.log(`Saving file with encoding: ${encoding}`);
+
+        let buffer: Buffer;
+
+        // 인코딩에 따라 버퍼 생성
+        if (encoding === 'UTF-8(BOM)') {
+          // UTF-8 BOM 추가
+          const bom = Buffer.from([0xef, 0xbb, 0xbf]);
+          const contentBuffer = Buffer.from(content, 'utf8');
+          buffer = Buffer.concat([bom, contentBuffer]);
+          console.log('Added UTF-8 BOM');
+        } else if (encoding === 'UTF-8') {
+          // UTF-8 (BOM 없음)
+          buffer = Buffer.from(content, 'utf8');
+        } else if (encoding === 'UTF-16LE') {
+          // UTF-16LE BOM 추가
+          const bom = Buffer.from([0xff, 0xfe]);
+          const contentBuffer = iconv.encode(content, 'UTF-16LE');
+          buffer = Buffer.concat([bom, contentBuffer]);
+          console.log('Added UTF-16LE BOM');
+        } else if (encoding === 'UTF-16BE') {
+          // UTF-16BE BOM 추가
+          const bom = Buffer.from([0xfe, 0xff]);
+          const contentBuffer = iconv.encode(content, 'UTF-16BE');
+          buffer = Buffer.concat([bom, contentBuffer]);
+          console.log('Added UTF-16BE BOM');
+        } else {
+          // 기타 인코딩 (EUC-KR, CP949 등)
+          buffer = iconv.encode(content, encoding);
+        }
+
+        // 파일 쓰기
+        await fs.writeFile(filePath, buffer);
+
+        // 최근 파일 목록에 추가
+        recentFilesManager.addFile(filePath);
+        // 메뉴 업데이트
+        updateMenu();
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to write file:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
     }
-  });
+  );
 
   // 파일 읽기
   ipcMain.handle('file:read', async (_event, filePath: string) => {
@@ -233,20 +269,48 @@ function setupIpcHandlers() {
 
       // Detect encoding
       const encoding = detectEncoding(buffer);
+      console.log(`Detected encoding for ${filePath}: ${encoding}`);
 
-      // Decode buffer with detected encoding
+      // Remove BOM if present and decode
       let content: string;
+      let bufferWithoutBOM = buffer;
+
+      // BOM 제거
+      if (encoding === 'UTF-8' || encoding === 'UTF-8(BOM)') {
+        // UTF-8 BOM: EF BB BF
+        if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+          bufferWithoutBOM = buffer.subarray(3);
+          console.log('Removed UTF-8 BOM');
+        }
+      } else if (encoding === 'UTF-16LE') {
+        // UTF-16LE BOM: FF FE
+        if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+          bufferWithoutBOM = buffer.subarray(2);
+          console.log('Removed UTF-16LE BOM');
+        }
+      } else if (encoding === 'UTF-16BE') {
+        // UTF-16BE BOM: FE FF
+        if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
+          bufferWithoutBOM = buffer.subarray(2);
+          console.log('Removed UTF-16BE BOM');
+        }
+      }
+
+      // 디코딩
       try {
-        if (encoding === 'UTF-8' || encoding === 'UTF-16LE' || encoding === 'UTF-16BE') {
-          // Node.js native encodings
-          content = buffer.toString(encoding.toLowerCase() as BufferEncoding);
+        if (encoding === 'UTF-8' || encoding === 'UTF-8(BOM)') {
+          // UTF-8은 Node.js 네이티브 디코딩 사용
+          content = bufferWithoutBOM.toString('utf8');
+        } else if (encoding === 'UTF-16LE' || encoding === 'UTF-16BE') {
+          // UTF-16은 iconv-lite 사용 (더 안정적)
+          content = iconv.decode(bufferWithoutBOM, encoding);
         } else {
-          // Use iconv-lite for other encodings
-          content = iconv.decode(buffer, encoding);
+          // 기타 인코딩 (EUC-KR, CP949 등)
+          content = iconv.decode(bufferWithoutBOM, encoding);
         }
       } catch (decodeError) {
         console.warn(`Failed to decode with ${encoding}, falling back to UTF-8:`, decodeError);
-        content = buffer.toString('utf-8');
+        content = buffer.toString('utf8');
       }
 
       // 최근 파일 목록에 추가

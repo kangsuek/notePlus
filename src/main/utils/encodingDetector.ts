@@ -40,7 +40,7 @@ function detectBOM(buffer: Buffer): string | null {
 
   // UTF-8 BOM: EF BB BF
   if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
-    return 'UTF-8';
+    return 'UTF-8(BOM)';
   }
 
   // UTF-16 LE BOM: FF FE

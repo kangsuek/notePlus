@@ -1,3 +1,3 @@
-2025-10-14: Encoding display changed from "EUC-KR" to "ANSI"
-Modified: StatusBar.tsx, StatusBar.test.tsx, created encodingMapper.ts
-Status: All tests passing (13/13 StatusBar tests), encoding detection working correctly
+2025-10-14: File encoding BOM handling implementation completed
+Modified: src/main/index.ts (added BOM detection/removal for UTF-8/UTF-16LE/UTF-16BE)
+Status: TypeScript compilation passing, BOM properly stripped before decoding, needs testing with sample files

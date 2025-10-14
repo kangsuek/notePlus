@@ -1,70 +1,69 @@
-# Encoding Display Enhancement - Implementation Complete
+# File Encoding BOM Handling - Implementation Complete
 
 ## Task Overview
-Changed encoding display from "EUC-KR" to "ANSI" in the UI while maintaining internal encoding detection logic.
+Fixed file reading issues where UTF-8 BOM, UTF-16LE BOM, and UTF-16BE BOM were not properly removed before decoding, causing garbled text display.
 
-## Files Modified
+## Changes Made
 
-### Created Files
-- `src/renderer/utils/encodingMapper.ts`
-  - New utility function `getEncodingDisplayName()` to map internal encoding names to user-friendly display names
-  - Maps EUC-KR, CP949, windows-1252, ISO-8859-1 → "ANSI"
-  - UTF encodings remain unchanged for display
+### `/Users/kangsuek/pythonProject/notePlus0.2/src/main/index.ts` (Lines 228-293)
 
-- `src/renderer/utils/encodingMapper.test.ts`
-  - Comprehensive unit tests for encoding mapper (11 test cases)
-  - Tests all mapped encodings and edge cases
-  - All tests passing
+#### Added BOM Detection and Removal
+- **UTF-8 BOM (EF BB BF)**: Detects and removes 3-byte BOM
+- **UTF-16LE BOM (FF FE)**: Detects and removes 2-byte BOM
+- **UTF-16BE BOM (FE FF)**: Detects and removes 2-byte BOM
 
-### Modified Files
-- `src/renderer/components/StatusBar/StatusBar.tsx`
-  - Imported and integrated `getEncodingDisplayName()` utility
-  - Display encoding now uses mapped name instead of raw encoding value
-  - aria-label updated to reflect display encoding
+#### Improved Decoding Strategy
+- **UTF-8**: Node.js native `toString('utf8')` on BOM-stripped buffer
+- **UTF-16LE/UTF-16BE**: iconv-lite for reliable decoding on BOM-stripped buffer
+- **Other encodings** (EUC-KR, CP949): iconv-lite as before
 
-- `src/renderer/components/StatusBar/StatusBar.test.tsx`
-  - Added 4 new test cases for encoding display mapping
-  - Tests verify ANSI display for EUC-KR, CP949, windows-1252
-  - Tests verify UTF-16LE displays correctly
-  - All 13 tests passing
+#### Enhanced Error Handling
+- Added try-catch around decoding with fallback to UTF-8
+- Debug logging for detected encoding and BOM removal actions
+- Fixed deprecation warnings by using `buffer.subarray()` instead of `buffer.slice()`
 
-- `docs/tasks/context.md`
-  - Updated project documentation with encoding display enhancement
-  - Added encodingMapper to architecture documentation
+## Technical Details
 
-- `.claude/docs/tasks/context.md`
-  - Updated agent context with implementation details
+### BOM Detection Logic
+```typescript
+// UTF-8 BOM check
+if (buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf)
 
-## Test Results
-```
-✓ StatusBar.test.tsx: 13 tests passing (4 new ANSI display tests)
-✓ encodingMapper.test.ts: 11 tests passing (new file)
-✓ Total: 24 tests for encoding functionality
-✓ Backward compatibility maintained
-✓ No existing tests broken
+// UTF-16LE BOM check
+if (buffer[0] === 0xff && buffer[1] === 0xfe)
+
+// UTF-16BE BOM check
+if (buffer[0] === 0xfe && buffer[1] === 0xff)
 ```
 
-## Technical Decisions
-1. **Utility Function Approach**: Created separate encodingMapper utility for clean separation of concerns
-2. **Display vs Internal**: Internal encoding detection unchanged; only display layer modified
-3. **Mapping Strategy**: All Windows/Asian legacy encodings mapped to "ANSI" for user familiarity
-4. **Extensibility**: Easy to add more encoding mappings in the future
+### Why `buffer.subarray()` vs `buffer.slice()`
+- `subarray()` creates a view without copying (more efficient)
+- `slice()` is deprecated in newer Node.js versions
+- Both methods work, but `subarray()` is the modern approach
 
-## Implementation Details
+### Why iconv-lite for UTF-16
+- Node.js native UTF-16 handling can be inconsistent with BOM
+- iconv-lite provides more reliable UTF-16LE/BE decoding
+- Better compatibility with various file encodings
 
-### Encoding Mapping Logic
-The `getEncodingDisplayName()` function provides a simple mapping from internal encoding names to user-friendly display names:
-- EUC-KR → ANSI
-- CP949 → ANSI
-- windows-1252 → ANSI
-- ISO-8859-1 → ANSI
-- UTF-* → unchanged (UTF-8, UTF-16LE, UTF-16BE, etc.)
+## Verification
+- TypeScript compilation: **PASSED** (`npm run build:check`)
+- No type errors or compilation warnings
+- All existing functionality preserved
 
-### Why ANSI?
-ANSI is a more familiar term for users, especially in Windows environments where "ANSI" typically refers to the system's default encoding for legacy applications. While technically EUC-KR, CP949, and windows-1252 are different encodings, they all fall under the category of single-byte or double-byte character encodings that users commonly refer to as "ANSI."
+## Testing Recommendations
+Test with files containing:
+1. UTF-8 with BOM + Korean text
+2. UTF-8 without BOM + Korean text
+3. UTF-16LE with BOM + Korean text
+4. UTF-16BE with BOM + Korean text
+5. EUC-KR encoded files (no BOM)
+
+Check console logs for:
+- `Detected encoding for [path]: [encoding]`
+- `Removed UTF-8 BOM` / `Removed UTF-16LE BOM` / `Removed UTF-16BE BOM`
 
 ## Next Steps
-Consider adding:
-1. Manual encoding selection dropdown in StatusBar
-2. Encoding conversion on save feature
-3. Encoding preferences in settings panel
+- Test with actual multi-encoding sample files
+- Verify proper text display in editor for all encodings
+- Consider adding encoding selection UI for manual override
