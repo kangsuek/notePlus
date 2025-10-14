@@ -1,12 +1,12 @@
 :root {
-  /* Light Theme */
-  --background-primary: #ffffff;
-  --background-secondary: #f5f5f7;
+  /* Light Theme - 눈의 피로 감소 최적화 */
+  --background-primary: #f7f7f5;
+  --background-secondary: #ecece9;
   --text-primary: #1d1d1f;
   --text-secondary: #86868b;
   --text-placeholder: #c7c7cc;
-  --border-color: #d2d2d7;
-  --hover-background: rgba(0, 0, 0, 0.05);
+  --border-color: #d0d0ce;
+  --hover-background: rgba(0, 0, 0, 0.07);
   --accent-color: #007aff;
 }
 
