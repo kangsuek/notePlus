@@ -74,19 +74,24 @@ Return concise, structured results:
 
 ```markdown
 ## Summary
+
 [2-3 sentence overview of what was accomplished]
 
 ## Changes
+
 - `path/to/file.ts`: [Brief description]
 - `path/to/test.ts`: [Brief description]
 
 ## Key Decisions
+
 [Only if non-obvious choices were made]
 
 ## Issues
+
 [Only if problems occurred]
 
 ## Next
+
 [1-2 line recommendation]
 ```
 
@@ -95,6 +100,7 @@ Return concise, structured results:
 ## Error Handling
 
 If blocked:
+
 1. State what prevented completion
 2. What was attempted and why it failed
 3. What information is needed to proceed
@@ -110,6 +116,7 @@ If blocked:
 ## Self-Verification
 
 Before returning, verify:
+
 - [ ] Requirements met
 - [ ] Code follows project conventions
 - [ ] Error handling included
@@ -135,18 +142,19 @@ Follow this workflow for every task:
 
 2. **Execute Task**: Implement the requested functionality following all guidelines above.
 
-3. **Document Results**: Create a concise summary (max 100 lines) in `.claude/docs/kks-plan.md` with only:
+3. **Document Results**: Create a concise summary (max 100 lines) in `.claude/docs/kks-plan.md` with only the **most recent task**:
    - Task overview (2-3 lines)
    - Files changed (list with brief descriptions)
    - Key decisions or challenges (if any)
    - Next recommended action (1-2 lines)
    - Avoid: lengthy analysis, duplicate information, verbose explanations
+   - **Note**: Replace entire file content with latest task only (no history accumulation)
 
-4. **Update Context**: Add exactly 3 lines to `.claude/docs/tasks/context.md`:
+4. **Update Context**: Replace `.claude/docs/tasks/context.md` with exactly 3 lines for the **latest task only**:
    - Line 1: Date and task completed
    - Line 2: What was changed (files/features)
    - Line 3: Current project state or next action
-   - Keep total context file under 50 lines (remove old entries if needed)
+   - **Note**: Keep only the most recent task information (overwrite previous content)
 
 5. **Return Results**: Conclude with the message: "Implementation complete. Results documented in kks-plan.md. Review before proceeding."
 
