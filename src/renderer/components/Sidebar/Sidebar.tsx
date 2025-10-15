@@ -13,32 +13,52 @@ import { getRecentFiles, removeRecentFile, type RecentFile } from '@renderer/uti
 import './Sidebar.css';
 
 /**
- * 상대 시간 표시 (예: "방금 전", "5분 전", "2시간 전")
+ * 경로를 단축하여 표시 (예: /Users/name/very/long/path/to/file.md → ~/very/.../file.md)
  */
-function formatRelativeTime(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
+function shortenPath(fullPath: string, maxLength: number = 40): string {
+  let path = fullPath;
 
-  if (diffSecs < 60) {
-    return '방금 전';
-  } else if (diffMins < 60) {
-    return `${diffMins}분 전`;
-  } else if (diffHours < 24) {
-    return `${diffHours}시간 전`;
-  } else if (diffDays < 7) {
-    return `${diffDays}일 전`;
-  } else {
-    // 7일 이상이면 날짜 표시
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+  // 홈 디렉토리를 ~로 변경 (패턴 매칭 사용)
+  // macOS/Linux: /Users/username/ 또는 /home/username/
+  // Windows: C:\Users\username\
+  const unixHomePattern = /^(\/Users\/[^/]+|\/home\/[^/]+)(\/|$)/;
+  const windowsHomePattern = /^[A-Z]:\\Users\\[^\\]+\\/i;
+
+  if (unixHomePattern.test(path)) {
+    path = path.replace(unixHomePattern, '~$2');
+  } else if (windowsHomePattern.test(path)) {
+    path = path.replace(windowsHomePattern, '~\\');
   }
+
+  // 경로가 충분히 짧으면 그대로 반환
+  if (path.length <= maxLength) {
+    return path;
+  }
+
+  // 경로를 부분으로 나누기 (/ 또는 \ 구분자 지원)
+  const separator = path.includes('\\') ? '\\' : '/';
+  const parts = path.split(separator);
+
+  // 파일명과 마지막 디렉토리는 유지
+  if (parts.length <= 2) {
+    return path;
+  }
+
+  const fileName = parts[parts.length - 1];
+  const lastDir = parts[parts.length - 2];
+
+  // 처음 부분 (~ 또는 / 또는 드라이브 문자)
+  const prefix = parts[0] || separator;
+
+  // 중간을 생략하고 마지막 2개 부분만 표시
+  const shortened = `${prefix}${separator}...${separator}${lastDir}${separator}${fileName}`;
+
+  // 여전히 길면 파일명만 표시
+  if (shortened.length > maxLength) {
+    return `...${separator}${fileName}`;
+  }
+
+  return shortened;
 }
 
 const Sidebar = React.memo(
@@ -294,6 +314,7 @@ const Sidebar = React.memo(
                     // displayName이 있으면 사용, 없으면 경로에서 파일명 추출
                     const fileName = file.displayName || file.path.split('/').pop() || file.path;
                     const isSelected = selectedFile === file.path;
+                    const shortPath = shortenPath(file.path);
 
                     return (
                       <li
@@ -303,7 +324,7 @@ const Sidebar = React.memo(
                         title={file.path}
                       >
                         <div className="file-name">{fileName}</div>
-                        <div className="file-time">{formatRelativeTime(file.lastOpened)}</div>
+                        <div className="file-path">{shortPath}</div>
                       </li>
                     );
                   })}
