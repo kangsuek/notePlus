@@ -153,6 +153,15 @@ export interface AppSettings {
 }
 
 /**
+ * 에디터 설정 (환경설정에서 관리)
+ */
+export interface EditorSettings {
+  showLineNumbers: boolean;
+  fontFamily: string;
+  fontSize: number;
+}
+
+/**
  * IPC 채널 타입
  */
 export type IPCChannel =

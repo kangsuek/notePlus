@@ -67,7 +67,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
         }
       }, 0);
     }
-  }, [initialQuery, isVisible]); // Don't include onSearch and options to avoid infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery, isVisible]); // onSearch and options are intentionally excluded to prevent infinite loops
 
   // Validate regex when query or options change (but don't trigger search)
   useEffect(() => {

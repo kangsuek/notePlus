@@ -20,6 +20,7 @@ import {
   type SearchResult,
   type SearchOptions,
 } from '@renderer/utils/searchUtils';
+import { replaceTextWithUndo } from '@renderer/utils/textareaUtils';
 import './Editor.css';
 
 const Editor = React.memo(
@@ -654,17 +655,25 @@ const Editor = React.memo(
     const handleReplace = useCallback(
       (replacement: string) => {
         if (currentSearchIndex < 0 || currentSearchIndex >= searchResults.length) return;
+        if (!textareaRef.current) return;
 
         const result = searchResults[currentSearchIndex];
-        const newText = replaceAtIndex(text, result.index, result.length, replacement);
 
-        setText(newText);
-        if (onChange) {
-          onChange(newText);
-        }
+        // Use replaceTextWithUndo to preserve undo/redo stack
+        replaceTextWithUndo(
+          textareaRef.current,
+          result.index,
+          result.index + result.length,
+          replacement
+        );
+
+        // The textarea's input event will trigger handleTextChange,
+        // which will update the state and call onChange
+        // So we don't need to call setText or onChange manually
 
         // Re-search to update highlights for remaining matches
         setTimeout(() => {
+          const newText = textareaRef.current?.value || text;
           const newResults = searchText(newText, currentSearchQuery, currentSearchOptions);
           setSearchResults(newResults);
 
@@ -680,21 +689,39 @@ const Editor = React.memo(
           } else {
             setCurrentSearchIndex(-1);
           }
+
+          // Keep focus on textarea after replace to ensure Cmd+Z works on editor
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+          }
         }, 0);
       },
-      [text, searchResults, currentSearchIndex, currentSearchQuery, currentSearchOptions, onChange, scrollToSearchResult]
+      [text, searchResults, currentSearchIndex, currentSearchQuery, currentSearchOptions, scrollToSearchResult]
     );
 
     const handleReplaceAll = useCallback(
       (replacement: string) => {
         if (searchResults.length === 0) return;
+        if (!textareaRef.current) return;
 
-        // Use current search query and options
-        const { newText, count } = replaceAll(text, currentSearchQuery, replacement, currentSearchOptions);
+        // Use current search query and options to calculate new text
+        const { newText } = replaceAll(text, currentSearchQuery, replacement, currentSearchOptions);
 
-        setText(newText);
-        if (onChange) {
-          onChange(newText);
+        // Use replaceTextWithUndo to replace entire text and preserve undo/redo stack
+        // Select all text and replace
+        const textarea = textareaRef.current;
+        textarea.focus();
+        textarea.setSelectionRange(0, textarea.value.length);
+
+        // Use execCommand to preserve undo stack
+        const success = document.execCommand('insertText', false, newText);
+
+        if (!success) {
+          // Fallback: manually update (won't preserve undo)
+          setText(newText);
+          if (onChange) {
+            onChange(newText);
+          }
         }
 
         // Clear search results after replace all
@@ -740,7 +767,8 @@ const Editor = React.memo(
           setIsSearchVisible(false);
         }
       }
-    }, [controlledValue, text]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [controlledValue]); // text를 의존성에서 제거하여 사용자 입력 시 충돌 방지
 
     // 윈도우 크기 변경 감지 (자동 줄바꿈 재계산)
     useEffect(() => {
