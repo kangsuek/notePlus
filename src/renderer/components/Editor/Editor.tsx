@@ -853,6 +853,7 @@ const Editor = React.memo(
             totalResults={searchResults.length}
             isVisible={isSearchVisible}
             initialQuery={initialSearchQuery}
+            currentSearchQuery={currentSearchQuery}
           />
         )}
         <div className="editor-container">

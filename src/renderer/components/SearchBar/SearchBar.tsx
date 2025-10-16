@@ -12,6 +12,7 @@ export interface SearchBarProps {
   totalResults: number;
   isVisible: boolean;
   initialQuery?: string; // 초기 검색어
+  currentSearchQuery?: string; // 현재 검색된 검색어
 }
 
 export interface SearchOptions {
@@ -31,6 +32,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   totalResults,
   isVisible,
   initialQuery = '',
+  currentSearchQuery = '',
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [replaceText, setReplaceText] = useState('');
@@ -44,24 +46,28 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Set initial query when provided
-  useEffect(() => {
-    if (initialQuery && isVisible) {
-      setSearchQuery(initialQuery);
-      // Automatically trigger search with initial query
-      if (initialQuery.trim()) {
-        onSearch(initialQuery, options);
-      }
-    }
-  }, [initialQuery, isVisible]); // Don't include onSearch and options to avoid infinite loop
-
-  // Focus search input when search bar becomes visible
+  // Set initial query when provided and focus input
   useEffect(() => {
     if (isVisible && searchInputRef.current) {
-      searchInputRef.current.focus();
-      searchInputRef.current.select();
+      // Set initial query if provided
+      if (initialQuery) {
+        setSearchQuery(initialQuery);
+        // Automatically trigger search with initial query
+        if (initialQuery.trim()) {
+          onSearch(initialQuery, options);
+        }
+      }
+
+      // Focus and select the input after setting the query
+      // Use setTimeout to ensure the value is set before selecting
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+          searchInputRef.current.select();
+        }
+      }, 0);
     }
-  }, [isVisible]);
+  }, [initialQuery, isVisible]); // Don't include onSearch and options to avoid infinite loop
 
   // Validate regex when query or options change (but don't trigger search)
   useEffect(() => {
@@ -115,16 +121,17 @@ const SearchBar: React.FC<SearchBarProps> = ({
           }
         }
 
-        // If there are no results yet, trigger initial search
-        if (searchQuery && totalResults === 0) {
+        // If search query has changed or there are no results yet, trigger search
+        if (searchQuery && (searchQuery !== currentSearchQuery || totalResults === 0)) {
           onSearch(searchQuery, options);
         }
-
-        // Navigate to next/previous result
-        if (e.shiftKey) {
-          onPrevious();
-        } else {
-          onNext();
+        // Otherwise, navigate to next/previous result
+        else {
+          if (e.shiftKey) {
+            onPrevious();
+          } else {
+            onNext();
+          }
         }
 
         // Focus stays on search input (no focus manipulation needed)
@@ -133,7 +140,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         onClose();
       }
     },
-    [searchQuery, options, totalResults, onSearch, onNext, onPrevious, onClose]
+    [searchQuery, options, totalResults, currentSearchQuery, onSearch, onNext, onPrevious, onClose]
   );
 
   const handleReplaceKeyDown = useCallback(
