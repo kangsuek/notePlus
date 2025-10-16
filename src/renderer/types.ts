@@ -40,6 +40,23 @@ export interface EditorProps {
   showLineNumbers?: boolean; // 줄 번호 표시 여부
   fontFamily?: string; // 폰트 설정
   fontSize?: number; // 폰트 크기
+  onSearchStateChange?: (state: {
+    query: string;
+    currentIndex: number;
+    options: {
+      caseSensitive?: boolean;
+      wholeWord?: boolean;
+      useRegex?: boolean;
+    };
+  }) => void; // 검색 상태 변경 콜백
+}
+
+/**
+ * 에디터 Ref (외부에서 에디터 제어)
+ */
+export interface EditorRef {
+  openSearch: () => void;
+  openReplace: () => void;
 }
 
 /**

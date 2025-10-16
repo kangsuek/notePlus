@@ -6,6 +6,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0; /* flex item이 축소될 수 있도록 함 */
+  container-type: inline-size; /* Enable container queries */
 }
 
 .editor-header {
@@ -30,6 +31,7 @@
   display: flex;
   overflow: visible;
   min-height: 0; /* flex item이 축소될 수 있도록 함 */
+  position: relative; /* For absolute positioning of highlight layer */
 }
 
 .line-numbers-wrapper {
@@ -84,13 +86,15 @@
   font-family: var(--editor-font-family, 'SF Mono', Monaco, 'Cascadia Code', monospace);
   font-size: var(--editor-font-size, 14px);
   line-height: 1.6;
-  background-color: var(--background-primary);
+  background-color: transparent; /* Transparent to show highlight layer */
   color: var(--text-primary);
   overflow-y: auto;
   overflow-x: hidden; /* 가로 스크롤 숨기기 */
   white-space: pre-wrap; /* 자동 줄바꿈 활성화 */
   word-wrap: break-word; /* 긴 단어 줄바꿈 */
   overflow-wrap: break-word; /* 최신 브라우저 지원 */
+  position: relative;
+  z-index: 2; /* Above highlight layer */
   /* macOS 스타일 스크롤바 */
   scrollbar-width: thin;
   scrollbar-color: var(--text-secondary) transparent;
@@ -116,4 +120,52 @@
 
 .editor-textarea::placeholder {
   color: var(--text-placeholder);
+}
+
+/* Highlight layer for search results */
+.editor-highlight-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none; /* Allow clicks to pass through */
+  overflow: hidden;
+  z-index: 1;
+}
+
+.editor-textarea-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  background-color: var(--background-primary);
+}
+
+.editor-highlight-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 16px;
+  font-family: var(--editor-font-family, 'SF Mono', Monaco, 'Cascadia Code', monospace);
+  font-size: var(--editor-font-size, 14px);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  color: transparent;
+  user-select: none;
+  pointer-events: none;
+  box-sizing: border-box;
+  /* Width will be set dynamically via JavaScript to match textarea */
+}
+
+.editor-highlight {
+  background-color: rgba(255, 200, 0, 0.3);
+  border-radius: 2px;
+}
+
+.editor-highlight-current {
+  background-color: rgba(255, 150, 0, 0.5);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 100, 0, 0.8);
 }

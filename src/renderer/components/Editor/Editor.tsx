@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import LineNumbers from './LineNumbers';
+import SearchBar from '../SearchBar/SearchBar';
 import { EDITOR_CONFIG, MARKDOWN_SYNTAX } from '@renderer/constants';
-import type { EditorProps } from '@renderer/types';
+import type { EditorProps, EditorRef } from '@renderer/types';
 import { calculateLineWraps } from '@renderer/utils/lineWrapCalculator';
 import { calculateExpression } from '@renderer/utils/calculateExpression';
 import {
@@ -10,10 +11,19 @@ import {
   generateNextListItem,
   removeEmptyListItem,
 } from '@renderer/utils/markdownListUtils';
+import {
+  searchText,
+  replaceAtIndex,
+  replaceAll,
+  getNextResultIndex,
+  getPreviousResultIndex,
+  type SearchResult,
+  type SearchOptions,
+} from '@renderer/utils/searchUtils';
 import './Editor.css';
 
-const Editor: React.FC<EditorProps> = React.memo(
-  ({
+const Editor = React.memo(
+  forwardRef<EditorRef, EditorProps>(({
     value: controlledValue,
     onChange,
     onCursorChange,
@@ -24,13 +34,58 @@ const Editor: React.FC<EditorProps> = React.memo(
     showLineNumbers = true,
     fontFamily = 'Monaco, Menlo, "Courier New", monospace',
     fontSize = 14,
-  }) => {
+    onSearchStateChange,
+  }, ref) => {
     const [text, setText] = useState(controlledValue || '');
     const [currentLine, setCurrentLine] = useState(1);
     const [viewportWidth, setViewportWidth] = useState(0); // 뷰포트 너비 추적
     const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const lineNumbersRef = useRef<HTMLDivElement>(null);
+    const highlightContentRef = useRef<HTMLDivElement>(null);
+
+    // Search state
+    const [isSearchVisible, setIsSearchVisible] = useState(false);
+    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+    const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
+    const [currentSearchQuery, setCurrentSearchQuery] = useState('');
+    const [currentSearchOptions, setCurrentSearchOptions] = useState<SearchOptions>({
+      caseSensitive: false,
+      wholeWord: false,
+      useRegex: false,
+    });
+    const [initialSearchQuery, setInitialSearchQuery] = useState('');
+
+    // Get selected text from textarea
+    const getSelectedText = useCallback(() => {
+      if (!textareaRef.current) return '';
+      const start = textareaRef.current.selectionStart;
+      const end = textareaRef.current.selectionEnd;
+      if (start === end) return ''; // No selection
+      return text.substring(start, end);
+    }, [text]);
+
+    // Expose methods to parent via ref
+    useImperativeHandle(ref, () => ({
+      openSearch: () => {
+        const selectedText = getSelectedText();
+        if (selectedText) {
+          setInitialSearchQuery(selectedText);
+        } else {
+          setInitialSearchQuery('');
+        }
+        setIsSearchVisible(true);
+      },
+      openReplace: () => {
+        const selectedText = getSelectedText();
+        if (selectedText) {
+          setInitialSearchQuery(selectedText);
+        } else {
+          setInitialSearchQuery('');
+        }
+        setIsSearchVisible(true);
+      },
+    }), [getSelectedText]);
 
     // 자동 줄바꿈 정보 계산 (useMemo로 메모이제이션)
     const lineWraps = useMemo(() => {
@@ -95,20 +150,33 @@ const Editor: React.FC<EditorProps> = React.memo(
       [onChange, debounceMs]
     );
 
+    // Sync highlight layer scroll with textarea
+    const syncHighlightScroll = useCallback(() => {
+      if (highlightContentRef.current && textareaRef.current) {
+        highlightContentRef.current.style.transform =
+          `translate(-${textareaRef.current.scrollLeft}px, -${textareaRef.current.scrollTop}px)`;
+      }
+    }, []);
+
     // 스크롤 동기화 핸들러
     const handleScroll = useCallback(
       (e: React.UIEvent<HTMLTextAreaElement>) => {
-        if (!textareaRef.current || !lineNumbersRef.current) return;
+        if (!textareaRef.current) return;
 
         // textarea의 스크롤을 line numbers에 동기화
-        lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+        if (lineNumbersRef.current) {
+          lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+        }
+
+        // textarea의 스크롤을 highlight layer에 동기화
+        syncHighlightScroll();
 
         // 부모 컴포넌트에 스크롤 이벤트 전달 (Editor ↔ Preview 동기화)
         if (onScroll) {
           onScroll(e);
         }
       },
-      [onScroll]
+      [onScroll, syncHighlightScroll]
     );
 
     // 클릭 또는 키보드 이벤트 시 커서 위치 업데이트
@@ -448,6 +516,32 @@ const Editor: React.FC<EditorProps> = React.memo(
     // 키보드 이벤트 통합 핸들러
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Cmd+F: Open search
+        if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+          e.preventDefault();
+          const selectedText = getSelectedText();
+          if (selectedText) {
+            setInitialSearchQuery(selectedText);
+          } else {
+            setInitialSearchQuery('');
+          }
+          setIsSearchVisible(true);
+          return;
+        }
+
+        // Cmd+H: Open search with replace
+        if ((e.metaKey || e.ctrlKey) && e.key === 'h') {
+          e.preventDefault();
+          const selectedText = getSelectedText();
+          if (selectedText) {
+            setInitialSearchQuery(selectedText);
+          } else {
+            setInitialSearchQuery('');
+          }
+          setIsSearchVisible(true);
+          return;
+        }
+
         if (e.key === 'Tab') {
           handleTab(e, e.shiftKey);
         } else if (e.key === 'Enter') {
@@ -458,8 +552,170 @@ const Editor: React.FC<EditorProps> = React.memo(
           handleShortcut(e);
         }
       },
-      [handleTab, handleEnter, handleEquals, handleShortcut]
+      [handleTab, handleEnter, handleEquals, handleShortcut, getSelectedText]
     );
+
+    // Scroll textarea to make the search result visible (centered in viewport)
+    const scrollToSearchResult = useCallback((start: number) => {
+      if (!textareaRef.current) return;
+
+      const textarea = textareaRef.current;
+
+      // Use a temporary div to measure exact text position
+      const measureDiv = document.createElement('div');
+      const style = window.getComputedStyle(textarea);
+
+      // Copy all relevant styles from textarea
+      measureDiv.style.cssText = `
+        position: absolute;
+        visibility: hidden;
+        width: ${textarea.clientWidth}px;
+        font-family: ${style.fontFamily};
+        font-size: ${style.fontSize};
+        line-height: ${style.lineHeight};
+        padding: ${style.padding};
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      `;
+
+      document.body.appendChild(measureDiv);
+
+      // Measure the height of text before selection
+      const textBeforeSelection = text.substring(0, start);
+      measureDiv.textContent = textBeforeSelection;
+      const offsetTop = measureDiv.offsetHeight;
+
+      // Clean up
+      document.body.removeChild(measureDiv);
+
+      // Calculate scroll position to center the selection
+      const viewportHeight = textarea.clientHeight;
+      const targetScroll = offsetTop - viewportHeight / 2;
+
+      // Smooth scroll to center position
+      textarea.scrollTop = Math.max(0, targetScroll);
+    }, [text]);
+
+    // Notify parent about search state changes
+    useEffect(() => {
+      if (onSearchStateChange) {
+        onSearchStateChange({
+          query: currentSearchQuery,
+          currentIndex: currentSearchIndex,
+          options: currentSearchOptions,
+        });
+      }
+    }, [currentSearchQuery, currentSearchIndex, currentSearchOptions, onSearchStateChange]);
+
+    // Search handlers
+    const handleSearch = useCallback(
+      (query: string, options: SearchOptions) => {
+        const results = searchText(text, query, options);
+        setSearchResults(results);
+        setCurrentSearchIndex(results.length > 0 ? 0 : -1);
+        setCurrentSearchQuery(query);
+        setCurrentSearchOptions(options);
+
+        // Scroll to first result (no focus change)
+        if (results.length > 0 && textareaRef.current) {
+          scrollToSearchResult(results[0].index);
+        }
+      },
+      [text, scrollToSearchResult]
+    );
+
+    const handleNextMatch = useCallback(() => {
+      if (searchResults.length === 0) return;
+
+      const nextIndex = getNextResultIndex(currentSearchIndex, searchResults.length);
+      setCurrentSearchIndex(nextIndex);
+
+      // Scroll to result (no focus change)
+      if (nextIndex >= 0 && textareaRef.current) {
+        const result = searchResults[nextIndex];
+        scrollToSearchResult(result.index);
+      }
+    }, [searchResults, currentSearchIndex, scrollToSearchResult]);
+
+    const handlePreviousMatch = useCallback(() => {
+      if (searchResults.length === 0) return;
+
+      const prevIndex = getPreviousResultIndex(currentSearchIndex, searchResults.length);
+      setCurrentSearchIndex(prevIndex);
+
+      // Scroll to result (no focus change)
+      if (prevIndex >= 0 && textareaRef.current) {
+        const result = searchResults[prevIndex];
+        scrollToSearchResult(result.index);
+      }
+    }, [searchResults, currentSearchIndex, scrollToSearchResult]);
+
+    const handleReplace = useCallback(
+      (replacement: string) => {
+        if (currentSearchIndex < 0 || currentSearchIndex >= searchResults.length) return;
+
+        const result = searchResults[currentSearchIndex];
+        const newText = replaceAtIndex(text, result.index, result.length, replacement);
+
+        setText(newText);
+        if (onChange) {
+          onChange(newText);
+        }
+
+        // Re-search to update highlights for remaining matches
+        setTimeout(() => {
+          const newResults = searchText(newText, currentSearchQuery, currentSearchOptions);
+          setSearchResults(newResults);
+
+          // Move to the next match, or stay at the same position if possible
+          if (newResults.length > 0) {
+            const nextIndex = currentSearchIndex < newResults.length ? currentSearchIndex : 0;
+            setCurrentSearchIndex(nextIndex);
+
+            // Scroll to the next result
+            if (textareaRef.current) {
+              scrollToSearchResult(newResults[nextIndex].index);
+            }
+          } else {
+            setCurrentSearchIndex(-1);
+          }
+        }, 0);
+      },
+      [text, searchResults, currentSearchIndex, currentSearchQuery, currentSearchOptions, onChange, scrollToSearchResult]
+    );
+
+    const handleReplaceAll = useCallback(
+      (replacement: string) => {
+        if (searchResults.length === 0) return;
+
+        // Use current search query and options
+        const { newText, count } = replaceAll(text, currentSearchQuery, replacement, currentSearchOptions);
+
+        setText(newText);
+        if (onChange) {
+          onChange(newText);
+        }
+
+        // Clear search results after replace all
+        setSearchResults([]);
+        setCurrentSearchIndex(-1);
+      },
+      [text, currentSearchQuery, currentSearchOptions, searchResults.length, onChange]
+    );
+
+    const handleCloseSearch = useCallback(() => {
+      setIsSearchVisible(false);
+      setSearchResults([]);
+      setCurrentSearchIndex(-1);
+      setCurrentSearchQuery('');
+      setInitialSearchQuery('');
+
+      // Return focus to textarea
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }, []);
 
     // 클린업: 컴포넌트 언마운트 시 타이머 정리
     useEffect(() => {
@@ -470,12 +726,21 @@ const Editor: React.FC<EditorProps> = React.memo(
       };
     }, []);
 
-    // 외부에서 value가 변경되면 내부 상태 업데이트
+    // 외부에서 value가 변경되면 내부 상태 업데이트 및 검색 상태 초기화
     useEffect(() => {
       if (controlledValue !== undefined && controlledValue !== text) {
         setText(controlledValue);
+
+        // 텍스트가 완전히 바뀐 경우 (새 파일 열기 등) 검색 상태 초기화
+        // 단, 사용자가 직접 편집하는 경우는 제외 (debounce를 통해 onChange가 호출되는 경우)
+        if (controlledValue === '' || Math.abs(controlledValue.length - text.length) > 100) {
+          setSearchResults([]);
+          setCurrentSearchIndex(-1);
+          setCurrentSearchQuery('');
+          setIsSearchVisible(false);
+        }
       }
-    }, [controlledValue]);
+    }, [controlledValue, text]);
 
     // 윈도우 크기 변경 감지 (자동 줄바꿈 재계산)
     useEffect(() => {
@@ -511,6 +776,60 @@ const Editor: React.FC<EditorProps> = React.memo(
       }
     }, [onTextareaRef]);
 
+    // Sync highlight layer dimensions and scroll position with textarea
+    useEffect(() => {
+      if (highlightContentRef.current && textareaRef.current) {
+        // Match the textarea's content width (clientWidth accounts for scrollbar)
+        highlightContentRef.current.style.width = `${textareaRef.current.clientWidth}px`;
+
+        // Sync scroll position
+        syncHighlightScroll();
+      }
+    }, [searchResults, currentSearchIndex, viewportWidth, syncHighlightScroll]);
+
+    // Render highlighted text for search results
+    const renderHighlightedText = useCallback(() => {
+      if (searchResults.length === 0 || !text) return null;
+
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+
+      searchResults.forEach((result, idx) => {
+        // Add text before this match
+        if (result.index > lastIndex) {
+          parts.push(
+            <span key={`text-${lastIndex}`}>
+              {text.substring(lastIndex, result.index)}
+            </span>
+          );
+        }
+
+        // Add highlighted match
+        const isCurrent = idx === currentSearchIndex;
+        parts.push(
+          <span
+            key={`match-${result.index}`}
+            className={isCurrent ? 'editor-highlight-current' : 'editor-highlight'}
+          >
+            {text.substring(result.index, result.index + result.length)}
+          </span>
+        );
+
+        lastIndex = result.index + result.length;
+      });
+
+      // Add remaining text
+      if (lastIndex < text.length) {
+        parts.push(
+          <span key={`text-${lastIndex}`}>
+            {text.substring(lastIndex)}
+          </span>
+        );
+      }
+
+      return parts;
+    }, [text, searchResults, currentSearchIndex]);
+
     // 폰트 설정을 위한 CSS 변수 생성
     const editorStyle = {
       '--editor-font-family': fontFamily,
@@ -522,31 +841,55 @@ const Editor: React.FC<EditorProps> = React.memo(
         <div className="editor-header">
           <h3>Editor</h3>
         </div>
+        {isSearchVisible && (
+          <SearchBar
+            onSearch={handleSearch}
+            onReplace={handleReplace}
+            onReplaceAll={handleReplaceAll}
+            onNext={handleNextMatch}
+            onPrevious={handlePreviousMatch}
+            onClose={handleCloseSearch}
+            currentIndex={currentSearchIndex}
+            totalResults={searchResults.length}
+            isVisible={isSearchVisible}
+            initialQuery={initialSearchQuery}
+          />
+        )}
         <div className="editor-container">
           {showLineNumbers && (
             <div ref={lineNumbersRef} className="line-numbers-wrapper">
               <LineNumbers lineWraps={lineWraps} currentLine={currentLine} />
             </div>
           )}
-          <textarea
-            ref={textareaRef}
-            className="editor-textarea"
-            placeholder="마크다운으로 작성하세요..."
-            value={text}
-            onChange={handleTextChange}
-            onScroll={handleScroll}
-            onClick={handleCursorUpdate}
-            onKeyUp={handleCursorUpdate}
-            onKeyDown={handleKeyDown}
-            aria-label="마크다운 편집기"
-            aria-multiline="true"
-            role="textbox"
-            spellCheck="true"
-          />
+          <div className="editor-textarea-wrapper">
+            {/* Highlight layer for search results */}
+            {searchResults.length > 0 && (
+              <div className="editor-highlight-layer">
+                <div ref={highlightContentRef} className="editor-highlight-content">
+                  {renderHighlightedText()}
+                </div>
+              </div>
+            )}
+            <textarea
+              ref={textareaRef}
+              className="editor-textarea"
+              placeholder="마크다운으로 작성하세요..."
+              value={text}
+              onChange={handleTextChange}
+              onScroll={handleScroll}
+              onClick={handleCursorUpdate}
+              onKeyUp={handleCursorUpdate}
+              onKeyDown={handleKeyDown}
+              aria-label="마크다운 편집기"
+              aria-multiline="true"
+              role="textbox"
+              spellCheck="true"
+            />
+          </div>
         </div>
       </div>
     );
-  }
+  })
 );
 
 Editor.displayName = 'Editor';

@@ -13,7 +13,7 @@ import {
   PERFORMANCE_CONFIG,
   LAYOUT_CONFIG,
 } from '@renderer/constants';
-import type { CursorPosition, SidebarRef } from '@renderer/types';
+import type { CursorPosition, SidebarRef, EditorRef } from '@renderer/types';
 import { rafThrottle } from '@renderer/utils/throttle';
 import { saveFile, saveFileAs, openFile, readFile } from '@renderer/utils/fileOperations';
 import { shouldShowPreview } from '@renderer/utils/fileUtils';
@@ -37,12 +37,27 @@ const MainLayout: React.FC = React.memo(() => {
     fontFamily: 'Monaco, Menlo, "Courier New", monospace',
     fontSize: 14,
   });
+
+  // Search state for Preview synchronization
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [currentSearchIndex, setCurrentSearchIndex] = useState<number>(-1);
+  const [searchOptions, setSearchOptions] = useState<{
+    caseSensitive?: boolean;
+    wholeWord?: boolean;
+    useRegex?: boolean;
+  }>({
+    caseSensitive: false,
+    wholeWord: false,
+    useRegex: false,
+  });
+
   const statusTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 스크롤 동기화를 위한 ref
   const editorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const sidebarRef = useRef<SidebarRef | null>(null);
+  const editorRef = useRef<EditorRef | null>(null);
   const isEditorScrolling = useRef(false);
   const isPreviewScrolling = useRef(false);
 
@@ -263,6 +278,15 @@ const MainLayout: React.FC = React.memo(() => {
       // 파일을 열 때 사용자 토글 상태 리셋 (파일 타입에 따라 자동 결정)
       setUserTogglePreview(null);
 
+      // 검색 상태 초기화
+      setSearchQuery('');
+      setCurrentSearchIndex(-1);
+      setSearchOptions({
+        caseSensitive: false,
+        wholeWord: false,
+        useRegex: false,
+      });
+
       // 스크롤을 맨 위로 이동
       setTimeout(() => {
         if (editorTextareaRef.current) {
@@ -326,6 +350,15 @@ const MainLayout: React.FC = React.memo(() => {
             // 파일을 열 때 사용자 토글 상태 리셋 (파일 타입에 따라 자동 결정)
             setUserTogglePreview(null);
 
+            // 검색 상태 초기화
+            setSearchQuery('');
+            setCurrentSearchIndex(-1);
+            setSearchOptions({
+              caseSensitive: false,
+              wholeWord: false,
+              useRegex: false,
+            });
+
             // 스크롤을 맨 위로 이동
             setTimeout(() => {
               if (editorTextareaRef.current) {
@@ -374,6 +407,15 @@ const MainLayout: React.FC = React.memo(() => {
         // 파일을 열 때 사용자 토글 상태 리셋 (파일 타입에 따라 자동 결정)
         setUserTogglePreview(null);
 
+        // 검색 상태 초기화
+        setSearchQuery('');
+        setCurrentSearchIndex(-1);
+        setSearchOptions({
+          caseSensitive: false,
+          wholeWord: false,
+          useRegex: false,
+        });
+
         // 스크롤을 맨 위로 이동
         setTimeout(() => {
           if (editorTextareaRef.current) {
@@ -407,6 +449,15 @@ const MainLayout: React.FC = React.memo(() => {
 
     // 새 파일을 만들 때 사용자 토글 상태 리셋 (기본 파일명은 .md이므로 프리뷰 표시)
     setUserTogglePreview(null);
+
+    // 검색 상태 초기화
+    setSearchQuery('');
+    setCurrentSearchIndex(-1);
+    setSearchOptions({
+      caseSensitive: false,
+      wholeWord: false,
+      useRegex: false,
+    });
   }, [isDirty]);
 
   // 다른 이름으로 저장 (Cmd+Shift+S)
@@ -526,6 +577,20 @@ const MainLayout: React.FC = React.memo(() => {
       setIsPreferencesOpen(true);
     });
 
+    // 메뉴 → 찾기
+    window.electronAPI.on('menu:find', () => {
+      if (editorRef.current) {
+        editorRef.current.openSearch();
+      }
+    });
+
+    // 메뉴 → 바꾸기
+    window.electronAPI.on('menu:replace', () => {
+      if (editorRef.current) {
+        editorRef.current.openReplace();
+      }
+    });
+
     // 정리: IPC 리스너 제거는 electron에서 자동으로 처리됨
   }, [handleNew, handleOpen, handleSave, handleSaveAs, isSidebarCollapsed, handleFileOpen]);
 
@@ -616,6 +681,7 @@ const MainLayout: React.FC = React.memo(() => {
             className="editor-panel"
           >
             <Editor
+              ref={editorRef}
               value={markdownText}
               onCursorChange={handleCursorChange}
               onChange={handleTextChange}
@@ -628,6 +694,11 @@ const MainLayout: React.FC = React.memo(() => {
               showLineNumbers={editorSettings.showLineNumbers}
               fontFamily={editorSettings.fontFamily}
               fontSize={editorSettings.fontSize}
+              onSearchStateChange={(state) => {
+                setSearchQuery(state.query);
+                setCurrentSearchIndex(state.currentIndex);
+                setSearchOptions(state.options);
+              }}
             />
           </Panel>
           {finalShowPreview && (
@@ -638,7 +709,14 @@ const MainLayout: React.FC = React.memo(() => {
                 minSize={LAYOUT_CONFIG.PANEL_MIN_SIZE}
                 className="preview-panel"
               >
-                <Preview markdown={markdownText} ref={previewRef} onScroll={handlePreviewScroll} />
+                <Preview
+                  markdown={markdownText}
+                  ref={previewRef}
+                  onScroll={handlePreviewScroll}
+                  searchQuery={searchQuery}
+                  currentSearchIndex={currentSearchIndex}
+                  searchOptions={searchOptions}
+                />
               </Panel>
             </>
           )}
