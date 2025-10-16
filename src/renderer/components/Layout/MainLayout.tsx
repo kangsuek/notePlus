@@ -13,7 +13,7 @@ import {
   PERFORMANCE_CONFIG,
   LAYOUT_CONFIG,
 } from '@renderer/constants';
-import type { CursorPosition, SidebarRef, EditorRef } from '@renderer/types';
+import type { CursorPosition, SidebarRef, EditorRef, EditorSettings } from '@renderer/types';
 import { rafThrottle } from '@renderer/utils/throttle';
 import { saveFile, saveFileAs, openFile, readFile } from '@renderer/utils/fileOperations';
 import { shouldShowPreview } from '@renderer/utils/fileUtils';
@@ -32,7 +32,7 @@ const MainLayout: React.FC = React.memo(() => {
   const [isDragOver, setIsDragOver] = useState(false); // 드래그 오버 상태
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // 사이드바 접기 상태
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false); // 설정 창 열림 상태
-  const [editorSettings, setEditorSettings] = useState({
+  const [editorSettings, setEditorSettings] = useState<EditorSettings>({
     showLineNumbers: true,
     fontFamily: 'Monaco, Menlo, "Courier New", monospace',
     fontSize: 14,
@@ -60,6 +60,31 @@ const MainLayout: React.FC = React.memo(() => {
   const editorRef = useRef<EditorRef | null>(null);
   const isEditorScrolling = useRef(false);
   const isPreviewScrolling = useRef(false);
+
+  // 파일 열기 후 상태 초기화 (검색, 스크롤, 프리뷰 토글)
+  const resetFileState = useCallback(() => {
+    // 파일을 열 때 사용자 토글 상태 리셋 (파일 타입에 따라 자동 결정)
+    setUserTogglePreview(null);
+
+    // 검색 상태 초기화
+    setSearchQuery('');
+    setCurrentSearchIndex(-1);
+    setSearchOptions({
+      caseSensitive: false,
+      wholeWord: false,
+      useRegex: false,
+    });
+
+    // 스크롤을 맨 위로 이동
+    setTimeout(() => {
+      if (editorTextareaRef.current) {
+        editorTextareaRef.current.scrollTop = 0;
+      }
+      if (previewRef.current) {
+        previewRef.current.scrollTop = 0;
+      }
+    }, PERFORMANCE_CONFIG.DOM_UPDATE_DELAY);
+  }, []);
 
   // 상태 표시 함수 (useCallback으로 메모이제이션)
   const showStatusTemporarily = useCallback(() => {
@@ -275,32 +300,13 @@ const MainLayout: React.FC = React.memo(() => {
       setCurrentEncoding(result.encoding || 'UTF-8');
       setIsDirty(false);
 
-      // 파일을 열 때 사용자 토글 상태 리셋 (파일 타입에 따라 자동 결정)
-      setUserTogglePreview(null);
-
-      // 검색 상태 초기화
-      setSearchQuery('');
-      setCurrentSearchIndex(-1);
-      setSearchOptions({
-        caseSensitive: false,
-        wholeWord: false,
-        useRegex: false,
-      });
-
-      // 스크롤을 맨 위로 이동
-      setTimeout(() => {
-        if (editorTextareaRef.current) {
-          editorTextareaRef.current.scrollTop = 0;
-        }
-        if (previewRef.current) {
-          previewRef.current.scrollTop = 0;
-        }
-      }, PERFORMANCE_CONFIG.DOM_UPDATE_DELAY); // DOM 업데이트 후 실행
+      // 파일 열기 후 상태 초기화
+      resetFileState();
 
       // 최근 파일 목록 새로고침
       refreshRecentFiles();
     }
-  }, [refreshRecentFiles]);
+  }, [refreshRecentFiles, resetFileState]);
 
   // 드래그 앤 드롭 핸들러들
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -347,27 +353,8 @@ const MainLayout: React.FC = React.memo(() => {
             setCurrentFileName(file.name);
             setIsDirty(false);
 
-            // 파일을 열 때 사용자 토글 상태 리셋 (파일 타입에 따라 자동 결정)
-            setUserTogglePreview(null);
-
-            // 검색 상태 초기화
-            setSearchQuery('');
-            setCurrentSearchIndex(-1);
-            setSearchOptions({
-              caseSensitive: false,
-              wholeWord: false,
-              useRegex: false,
-            });
-
-            // 스크롤을 맨 위로 이동
-            setTimeout(() => {
-              if (editorTextareaRef.current) {
-                editorTextareaRef.current.scrollTop = 0;
-              }
-              if (previewRef.current) {
-                previewRef.current.scrollTop = 0;
-              }
-            }, PERFORMANCE_CONFIG.DOM_UPDATE_DELAY);
+            // 파일 열기 후 상태 초기화
+            resetFileState();
 
             // 최근 파일 목록에 추가 (드래그 앤 드롭으로 열린 파일도 포함)
             // 드래그 앤 드롭 파일은 고유한 식별자로 관리 (파일명 + 타임스탬프)
@@ -389,7 +376,7 @@ const MainLayout: React.FC = React.memo(() => {
         console.error('Failed to read dropped file:', error);
       }
     },
-    [refreshRecentFiles]
+    [refreshRecentFiles, resetFileState]
   );
 
   // 최근 파일에서 파일 열기 (Sidebar에서 더블클릭)
@@ -404,27 +391,8 @@ const MainLayout: React.FC = React.memo(() => {
         setCurrentEncoding(result.encoding || 'UTF-8');
         setIsDirty(false);
 
-        // 파일을 열 때 사용자 토글 상태 리셋 (파일 타입에 따라 자동 결정)
-        setUserTogglePreview(null);
-
-        // 검색 상태 초기화
-        setSearchQuery('');
-        setCurrentSearchIndex(-1);
-        setSearchOptions({
-          caseSensitive: false,
-          wholeWord: false,
-          useRegex: false,
-        });
-
-        // 스크롤을 맨 위로 이동
-        setTimeout(() => {
-          if (editorTextareaRef.current) {
-            editorTextareaRef.current.scrollTop = 0;
-          }
-          if (previewRef.current) {
-            previewRef.current.scrollTop = 0;
-          }
-        }, PERFORMANCE_CONFIG.DOM_UPDATE_DELAY); // DOM 업데이트 후 실행
+        // 파일 열기 후 상태 초기화
+        resetFileState();
 
         // 최근 파일 목록 새로고침
         refreshRecentFiles();
@@ -432,7 +400,7 @@ const MainLayout: React.FC = React.memo(() => {
         console.error('Failed to open file:', result.error);
       }
     },
-    [refreshRecentFiles]
+    [refreshRecentFiles, resetFileState]
   );
 
   // 새 파일 생성 (Cmd+N)
@@ -447,18 +415,9 @@ const MainLayout: React.FC = React.memo(() => {
     setCurrentFileName(FILE_CONFIG.DEFAULT_FILENAME);
     setIsDirty(false);
 
-    // 새 파일을 만들 때 사용자 토글 상태 리셋 (기본 파일명은 .md이므로 프리뷰 표시)
-    setUserTogglePreview(null);
-
-    // 검색 상태 초기화
-    setSearchQuery('');
-    setCurrentSearchIndex(-1);
-    setSearchOptions({
-      caseSensitive: false,
-      wholeWord: false,
-      useRegex: false,
-    });
-  }, [isDirty]);
+    // 파일 열기 후 상태 초기화 (새 파일도 동일한 초기화 필요)
+    resetFileState();
+  }, [isDirty, resetFileState]);
 
   // 다른 이름으로 저장 (Cmd+Shift+S)
   const handleSaveAs = useCallback(async () => {
@@ -524,7 +483,7 @@ const MainLayout: React.FC = React.memo(() => {
       try {
         const result = (await window.electronAPI.invoke('settings:get')) as {
           success: boolean;
-          settings?: any;
+          settings?: EditorSettings;
         };
         if (result.success && result.settings) {
           setEditorSettings(result.settings);

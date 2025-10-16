@@ -1,6 +1,6 @@
 {
   "name": "noteplus",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "마크다운 메모 + 계산기 macOS 네이티브 앱",
   "main": "dist/main/index.js",
   "author": "notePlus Team",
