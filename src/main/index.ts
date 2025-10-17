@@ -25,6 +25,22 @@ let lastSavePath: string | undefined;
 let lastOpenPath: string | undefined;
 
 /**
+ * 저장 시간 초과 시 강제 종료 확인
+ */
+async function confirmForceClose(window: BrowserWindow): Promise<boolean> {
+  const { response } = await dialog.showMessageBox(window, {
+    type: 'warning',
+    buttons: ['강제 종료', '취소'],
+    defaultId: 1,
+    cancelId: 1,
+    title: '저장 시간 초과',
+    message: '파일 저장이 완료되지 않았습니다.',
+    detail: '그래도 종료하시겠습니까? 변경사항이 손실될 수 있습니다.',
+  });
+  return response === 0;
+}
+
+/**
  * 메인 윈도우 생성 함수
  */
 function createWindow() {
@@ -64,8 +80,78 @@ function createWindow() {
   mainWindow.on('close', async (event) => {
     if (!mainWindow) return;
 
-    // 렌더러로부터 저장 여부 확인 (isDirty 상태 확인)
-    // 렌더러에서 beforeunload 이벤트로 처리
+    // 이미 강제 종료 중이면 그냥 닫기
+    if ((mainWindow as any).__forceClose) {
+      return;
+    }
+
+    // 일단 닫기 중단
+    event.preventDefault();
+
+    try {
+      // 렌더러로부터 isDirty 상태 확인
+      const isDirty = await mainWindow.webContents.executeJavaScript(
+        'window.__isDirty__ !== undefined ? window.__isDirty__ : false'
+      );
+
+      if (isDirty) {
+        // 저장하지 않은 변경사항이 있으면 확인 다이얼로그 표시
+        const { response } = await dialog.showMessageBox(mainWindow, {
+          type: 'warning',
+          buttons: ['저장', '저장 안 함', '취소'],
+          defaultId: 0,
+          cancelId: 2,
+          title: '저장하지 않은 변경사항',
+          message: '저장하지 않은 변경사항이 있습니다.',
+          detail: '변경사항을 저장하시겠습니까?',
+        });
+
+        if (response === 0) {
+          // 저장 버튼 클릭
+          mainWindow.webContents.send('menu:save-file');
+
+          // 저장 완료 대기 (최대 5초)
+          let saved = false;
+          for (let i = 0; i < 50; i++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const currentIsDirty = await mainWindow.webContents.executeJavaScript(
+              'window.__isDirty__ !== undefined ? window.__isDirty__ : false'
+            );
+            if (!currentIsDirty) {
+              saved = true;
+              break;
+            }
+          }
+
+          if (saved || await confirmForceClose(mainWindow)) {
+            (mainWindow as any).__forceClose = true;
+            mainWindow.close();
+            // macOS에서도 명시적으로 app.quit() 호출
+            app.quit();
+          }
+        } else if (response === 1) {
+          // 저장 안 함 버튼 클릭 - 바로 종료
+          (mainWindow as any).__forceClose = true;
+          mainWindow.close();
+          // macOS에서도 명시적으로 app.quit() 호출
+          app.quit();
+        }
+        // response === 2 (취소) - 아무것도 하지 않음
+      } else {
+        // 변경사항 없음 - 바로 종료
+        (mainWindow as any).__forceClose = true;
+        mainWindow.close();
+        // macOS에서도 명시적으로 app.quit() 호출
+        app.quit();
+      }
+    } catch (error) {
+      console.error('Failed to check isDirty state:', error);
+      // 에러 발생 시 바로 종료
+      (mainWindow as any).__forceClose = true;
+      mainWindow.close();
+      // macOS에서도 명시적으로 app.quit() 호출
+      app.quit();
+    }
   });
 
   // 윈도우가 닫힐 때
@@ -427,6 +513,20 @@ function setupIpcHandlers() {
       };
     }
   });
+
+  // isDirty 상태 조회 (창 닫기 전 확인용)
+  ipcMain.handle('app:get-is-dirty', async () => {
+    try {
+      // 렌더러에서 직접 응답하도록 이벤트 전송
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to get isDirty state:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  });
 }
 
 /**
@@ -466,6 +566,12 @@ app.on('window-all-closed', () => {
 /**
  * 앱 종료 전 정리 작업
  */
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+  // mainWindow가 있고, forceClose 플래그가 설정되지 않은 경우
+  if (mainWindow && !(mainWindow as any).__forceClose) {
+    // close 이벤트 핸들러에서 처리하도록 함
+    event.preventDefault();
+    mainWindow.close();
+  }
   // 필요한 정리 작업 수행
 });

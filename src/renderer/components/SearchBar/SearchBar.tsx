@@ -130,6 +130,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         // Focus stays on search input (no focus manipulation needed)
       } else if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation(); // 이벤트 전파 방지
         onClose();
       }
     },
@@ -145,6 +146,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation(); // 이벤트 전파 방지
         onClose();
       }
     },

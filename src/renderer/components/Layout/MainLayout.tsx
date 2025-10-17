@@ -594,8 +594,16 @@ const MainLayout: React.FC = React.memo(() => {
     // 정리: IPC 리스너 제거는 electron에서 자동으로 처리됨
   }, [handleNew, handleOpen, handleSave, handleSaveAs, isSidebarCollapsed, handleFileOpen]);
 
-  // 창 닫기 전 확인 (저장하지 않은 변경사항이 있을 경우)
+  // Electron 환경에서는 beforeunload 대신 IPC로 처리
+  // 웹 환경에서만 beforeunload 사용
   useEffect(() => {
+    // Electron 환경에서는 beforeunload를 사용하지 않음
+    // 메인 프로세스에서 close 이벤트로 처리
+    if (window.electronAPI) {
+      return; // Electron 환경에서는 아무것도 하지 않음
+    }
+
+    // 웹 환경에서만 beforeunload 이벤트 사용
     const handleBeforeUnload = (e: BeforeUnloadEvent): string | undefined => {
       if (isDirty) {
         e.preventDefault();
@@ -611,6 +619,11 @@ const MainLayout: React.FC = React.memo(() => {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
+  }, [isDirty]);
+
+  // isDirty 상태를 전역으로 노출 (메인 프로세스에서 접근 가능하도록)
+  useEffect(() => {
+    (window as any).__isDirty__ = isDirty;
   }, [isDirty]);
 
   // 메모리 정리 등록
