@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import LineNumbers from './LineNumbers';
 import SearchBar from '../SearchBar/SearchBar';
 import { EDITOR_CONFIG, MARKDOWN_SYNTAX } from '@renderer/constants';
@@ -215,12 +215,9 @@ const Editor = React.memo(
               text.substring(0, currentLineStart) + newLineText + text.substring(currentLineEnd);
             setText(newValue);
 
-            // 커서 위치 조정
-            setTimeout(() => {
-              const newCursorPos = Math.max(currentLineStart, start - leadingSpaces.length);
-              textarea.selectionStart = textarea.selectionEnd = newCursorPos;
-              updateCursorPosition();
-            }, 0);
+            // 커서 위치 조정 (ref에 저장하여 useLayoutEffect에서 처리)
+            const newCursorPos = Math.max(currentLineStart, start - leadingSpaces.length);
+            savedCursorPosRef.current = newCursorPos;
 
             if (onChange) {
               onChange(newValue);
@@ -230,11 +227,8 @@ const Editor = React.memo(
             const newValue = text.substring(0, start) + spaces + text.substring(end);
             setText(newValue);
 
-            // 커서 위치 조정
-            setTimeout(() => {
-              textarea.selectionStart = textarea.selectionEnd = start + spaces.length;
-              updateCursorPosition();
-            }, 0);
+            // 커서 위치 조정 (ref에 저장하여 useLayoutEffect에서 처리)
+            savedCursorPosRef.current = start + spaces.length;
 
             if (onChange) {
               onChange(newValue);
@@ -273,12 +267,11 @@ const Editor = React.memo(
           const newValue = text.substring(0, firstLineStart) + newSelectedText + text.substring(lastLineEnd);
           setText(newValue);
 
-          // 선택 영역 유지
-          setTimeout(() => {
-            textarea.selectionStart = firstLineStart;
-            textarea.selectionEnd = firstLineStart + newSelectedText.length;
-            updateCursorPosition();
-          }, 0);
+          // 선택 영역 유지 (ref에 저장하여 useLayoutEffect에서 처리)
+          savedSelectionRef.current = {
+            start: firstLineStart,
+            end: firstLineStart + newSelectedText.length,
+          };
 
           if (onChange) {
             onChange(newValue);
@@ -331,10 +324,8 @@ const Editor = React.memo(
 
               setText(finalText);
 
-              setTimeout(() => {
-                textarea.selectionStart = textarea.selectionEnd = cursorPos + 1;
-                updateCursorPosition();
-              }, 0);
+              // 커서 위치 조정 (ref에 저장하여 useLayoutEffect에서 처리)
+              savedCursorPosRef.current = cursorPos + 1;
 
               if (onChange) {
                 onChange(finalText);
@@ -348,11 +339,8 @@ const Editor = React.memo(
 
             setText(newValue);
 
-            setTimeout(() => {
-              const newCursorPos = start + nextItem.length;
-              textarea.selectionStart = textarea.selectionEnd = newCursorPos;
-              updateCursorPosition();
-            }, 0);
+            // 커서 위치 조정 (ref에 저장하여 useLayoutEffect에서 처리)
+            savedCursorPosRef.current = start + nextItem.length;
 
             if (onChange) {
               onChange(newValue);
@@ -370,10 +358,8 @@ const Editor = React.memo(
           const newValue = text.substring(0, start) + '\n' + indent + text.substring(end);
           setText(newValue);
 
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + 1 + indent.length;
-            updateCursorPosition();
-          }, 0);
+          // 커서 위치 조정 (ref에 저장하여 useLayoutEffect에서 처리)
+          savedCursorPosRef.current = start + 1 + indent.length;
 
           if (onChange) {
             onChange(newValue);
@@ -448,11 +434,8 @@ const Editor = React.memo(
 
         setText(newValue);
 
-        // 커서 위치 조정
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = newCursorPos;
-          updateCursorPosition();
-        }, 0);
+        // 커서 위치 조정 (ref에 저장하여 useLayoutEffect에서 처리)
+        savedCursorPosRef.current = newCursorPos;
 
         // onChange 호출
         if (onChange) {
@@ -498,12 +481,8 @@ const Editor = React.memo(
 
         setText(newValue);
 
-        // 커서 위치를 결과 뒤로 이동
-        setTimeout(() => {
-          const newCursorPos = start + 3 + result.length;
-          textarea.selectionStart = textarea.selectionEnd = newCursorPos;
-          updateCursorPosition();
-        }, 0);
+        // 커서 위치를 결과 뒤로 이동 (ref에 저장하여 useLayoutEffect에서 처리)
+        savedCursorPosRef.current = start + 3 + result.length;
 
         // onChange 호출
         if (onChange) {
@@ -726,9 +705,19 @@ const Editor = React.memo(
       };
     }, []);
 
+    // 커서 위치를 저장하는 ref
+    const savedCursorPosRef = useRef<number | null>(null);
+    // 선택 범위를 저장하는 ref (start, end)
+    const savedSelectionRef = useRef<{ start: number; end: number } | null>(null);
+
     // 외부에서 value가 변경되면 내부 상태 업데이트 및 검색 상태 초기화
     useEffect(() => {
       if (controlledValue !== undefined && controlledValue !== text) {
+        // 현재 커서 위치 저장
+        if (textareaRef.current) {
+          savedCursorPosRef.current = textareaRef.current.selectionStart;
+        }
+
         setText(controlledValue);
 
         // 텍스트가 완전히 바뀐 경우 (새 파일 열기 등) 검색 상태 초기화
@@ -738,9 +727,49 @@ const Editor = React.memo(
           setCurrentSearchIndex(-1);
           setCurrentSearchQuery('');
           setIsSearchVisible(false);
+          // 큰 변경이므로 커서 위치 초기화
+          savedCursorPosRef.current = null;
         }
       }
-    }, [controlledValue, text]);
+    }, [controlledValue]); // text 제거 - 무한 루프 방지
+
+    // 커서 위치/선택 범위 복원 (useLayoutEffect로 동기적 처리)
+    useLayoutEffect(() => {
+      if (!textareaRef.current) return;
+
+      const maxPos = text.length;
+
+      // 선택 범위 복원 (우선순위 높음)
+      if (savedSelectionRef.current !== null) {
+        const { start, end } = savedSelectionRef.current;
+        const validStart = Math.min(start, maxPos);
+        const validEnd = Math.min(end, maxPos);
+
+        textareaRef.current.selectionStart = validStart;
+        textareaRef.current.selectionEnd = validEnd;
+
+        // 복원 후 초기화
+        savedSelectionRef.current = null;
+        savedCursorPosRef.current = null; // 둘 다 초기화
+      }
+      // 단일 커서 위치 복원
+      else if (savedCursorPosRef.current !== null) {
+        const savedPos = savedCursorPosRef.current;
+
+        // 저장된 위치가 유효한 범위 내에 있으면 복원
+        if (savedPos <= maxPos) {
+          textareaRef.current.selectionStart = savedPos;
+          textareaRef.current.selectionEnd = savedPos;
+        } else {
+          // 유효하지 않으면 텍스트 끝으로
+          textareaRef.current.selectionStart = maxPos;
+          textareaRef.current.selectionEnd = maxPos;
+        }
+
+        // 복원 후 초기화
+        savedCursorPosRef.current = null;
+      }
+    }, [text]);
 
     // 윈도우 크기 변경 감지 (자동 줄바꿈 재계산)
     useEffect(() => {
