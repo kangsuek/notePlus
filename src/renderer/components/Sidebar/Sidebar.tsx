@@ -28,7 +28,7 @@ function replaceHomeDirectory(path: string): string {
   } else if (windowsHomePattern.test(path)) {
     return path.replace(windowsHomePattern, '~\\');
   }
-  
+
   return path;
 }
 
@@ -44,11 +44,7 @@ function splitPath(path: string): { separator: string; parts: string[] } {
 /**
  * 경로를 축약하는 헬퍼 함수
  */
-function createShortenedPath(
-  parts: string[],
-  separator: string,
-  maxLength: number
-): string {
+function createShortenedPath(parts: string[], separator: string, maxLength: number): string {
   const fileName = parts[parts.length - 1];
   const lastDir = parts[parts.length - 2];
   const prefix = parts[0] || separator;
@@ -66,7 +62,7 @@ function createShortenedPath(
 
 function shortenPath(fullPath: string, maxLength: number = DEFAULT_PATH_MAX_LENGTH): string {
   // 1단계: 홈 디렉토리를 ~로 변경
-  let path = replaceHomeDirectory(fullPath);
+  const path = replaceHomeDirectory(fullPath);
 
   // 2단계: 경로가 충분히 짧으면 그대로 반환
   if (path.length <= maxLength) {
@@ -93,7 +89,7 @@ const Sidebar = React.memo(
         onFileNameChange,
         isDirty = false,
         onFileOpen,
-        onNewFile,
+        onNewFile: _onNewFile,
         onRefreshRecentFiles,
         isCollapsed: externalIsCollapsed = false,
         onToggleCollapse,
@@ -140,7 +136,9 @@ const Sidebar = React.memo(
         };
 
         // 다음 틱에서 실행하여 테스트 환경에서 act() 경고 방지
-        const timeoutId = setTimeout(loadFiles, 0);
+        const timeoutId = setTimeout(() => {
+          void loadFiles();
+        }, 0);
 
         return () => {
           isMounted = false;
@@ -196,28 +194,25 @@ const Sidebar = React.memo(
 
       const handleRefresh = () => {
         // 최근 문서 목록 새로고침
-        loadRecentFiles();
+        void loadRecentFiles();
         onRefreshRecentFiles?.();
       };
 
-      const handleNew = () => {
-        onNewFile?.();
-      };
 
       const handleDelete = async () => {
         // 선택된 문서 삭제
         if (selectedFile) {
           await removeRecentFile(selectedFile);
           setSelectedFile(null);
-          loadRecentFiles();
+          void loadRecentFiles();
         }
       };
 
-      const handleFileClick = async (filePath: string) => {
+      const handleFileClick = (filePath: string) => {
         setSelectedFile(filePath);
         // 싱글클릭으로 파일 열기
         if (onFileOpen) {
-          await onFileOpen(filePath);
+          void onFileOpen(filePath);
         }
       };
 
@@ -315,7 +310,7 @@ const Sidebar = React.memo(
                 🔄
               </button>
               <button
-                onClick={handleDelete}
+                onClick={() => void handleDelete()}
                 title="삭제"
                 aria-label="선택된 문서 삭제"
                 disabled={!selectedFile}
