@@ -709,7 +709,7 @@ describe('Editor', () => {
       await waitFor(() => {
         expect(screen.getByPlaceholderText('찾기 (Enter로 검색)')).toBeInTheDocument();
       });
-      
+
       // 바꾸기 입력창이 표시되는지 확인 (조건부 렌더링)
       await waitFor(() => {
         const replaceInput = screen.queryByPlaceholderText('바꾸기 (Enter로 바꾸기)');

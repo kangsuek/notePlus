@@ -1,24 +1,24 @@
-import { memoryManager } from '@renderer/utils/memoryManager';
+import { cleanupManager, useCleanup } from '@renderer/utils/memoryManager';
 
 // Mock React
 jest.mock('react', () => ({
-  useEffect: jest.fn(),
+  useEffect: jest.fn((callback) => {
+    // useEffect를 즉시 실행하여 테스트
+    callback();
+    return () => {}; // cleanup function
+  }),
 }));
 
-describe('MemoryManager', () => {
-  beforeEach(() => {
-    memoryManager.clearStats();
-  });
-
+describe('CleanupManager', () => {
   describe('registerCleanup', () => {
     it('should register cleanup functions', () => {
       const cleanupFn1 = jest.fn();
       const cleanupFn2 = jest.fn();
 
-      memoryManager.registerCleanup(cleanupFn1);
-      memoryManager.registerCleanup(cleanupFn2);
+      cleanupManager.registerCleanup(cleanupFn1);
+      cleanupManager.registerCleanup(cleanupFn2);
 
-      memoryManager.cleanup();
+      cleanupManager.cleanup();
 
       expect(cleanupFn1).toHaveBeenCalled();
       expect(cleanupFn2).toHaveBeenCalled();
@@ -30,130 +30,78 @@ describe('MemoryManager', () => {
         throw new Error('Cleanup failed');
       });
 
-      memoryManager.registerCleanup(errorFn);
-      memoryManager.cleanup();
+      cleanupManager.registerCleanup(errorFn);
+      cleanupManager.cleanup();
 
       expect(errorFn).toHaveBeenCalled();
       expect(consoleSpy).toHaveBeenCalledWith('Cleanup function failed:', 'Cleanup failed');
 
       consoleSpy.mockRestore();
     });
-  });
 
-  describe('startMonitoring', () => {
-    it('should start memory monitoring', () => {
-      const setIntervalSpy = jest.spyOn(global, 'setInterval');
+    it('should clear cleanup functions after execution', () => {
+      const cleanupFn = jest.fn();
 
-      memoryManager.startMonitoring(1000);
+      cleanupManager.registerCleanup(cleanupFn);
+      cleanupManager.cleanup();
 
-      expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 1000);
+      // 두 번째 cleanup 호출 시 함수가 다시 호출되지 않아야 함
+      cleanupManager.cleanup();
 
-      memoryManager.stopMonitoring();
-      setIntervalSpy.mockRestore();
+      expect(cleanupFn).toHaveBeenCalledTimes(1);
     });
 
-    it('should not start monitoring if already monitoring', () => {
-      const setIntervalSpy = jest.spyOn(global, 'setInterval');
-
-      memoryManager.startMonitoring(1000);
-      memoryManager.startMonitoring(1000); // 두 번째 호출
-
-      expect(setIntervalSpy).toHaveBeenCalledTimes(1);
-
-      memoryManager.stopMonitoring();
-      setIntervalSpy.mockRestore();
+    it('should handle empty cleanup functions array', () => {
+      expect(() => {
+        cleanupManager.cleanup();
+      }).not.toThrow();
     });
   });
 
-  describe('stopMonitoring', () => {
-    it('should stop memory monitoring', () => {
-      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+  describe('useCleanup hook', () => {
+    it('should register cleanup function when component mounts', () => {
+      const cleanupFn = jest.fn();
+      const registerSpy = jest.spyOn(cleanupManager, 'registerCleanup');
 
-      memoryManager.startMonitoring(1000);
-      memoryManager.stopMonitoring();
+      useCleanup(cleanupFn);
 
-      expect(clearIntervalSpy).toHaveBeenCalled();
-
-      clearIntervalSpy.mockRestore();
-    });
-  });
-
-  describe('getMemoryReport', () => {
-    it('should return empty report when no stats', () => {
-      const report = memoryManager.getMemoryReport();
-
-      expect(report.currentUsage).toBe(0);
-      expect(report.averageUsage).toBe(0);
-      expect(report.maxUsage).toBe(0);
-      expect(report.memoryPressure).toBe('low');
+      expect(registerSpy).toHaveBeenCalledWith(cleanupFn);
     });
 
-    it('should calculate memory pressure correctly', () => {
-      // Mock performance.memory
-      Object.defineProperty(performance, 'memory', {
-        value: {
-          usedJSHeapSize: 1000000,
-          totalJSHeapSize: 2000000,
-          jsHeapSizeLimit: 10000000,
-        },
-        writable: true,
+    it('should call cleanup function when component unmounts', () => {
+      const cleanupFn = jest.fn();
+      const mockUseEffect = require('react').useEffect;
+
+      // useEffect의 cleanup function을 캡처
+      let cleanupCallback: (() => void) | undefined;
+      mockUseEffect.mockImplementation((callback: () => void | (() => void)) => {
+        const result = callback();
+        if (typeof result === 'function') {
+          cleanupCallback = result;
+        }
+        return () => {};
       });
 
-      memoryManager.startMonitoring(100);
+      useCleanup(cleanupFn);
 
-      // 메모리 통계 기록을 위해 시간 경과 시뮬레이션
-      setTimeout(() => {
-        const report = memoryManager.getMemoryReport();
+      // cleanup function 호출
+      if (cleanupCallback) {
+        cleanupCallback();
+      }
 
-        expect(report.currentUsage).toBeGreaterThanOrEqual(0);
-        expect(['low', 'medium', 'high']).toContain(report.memoryPressure);
-
-        memoryManager.stopMonitoring();
-      }, 150);
+      expect(cleanupFn).toHaveBeenCalled();
     });
   });
 
-  describe('getCleanupSuggestions', () => {
-    it('should return suggestions based on memory usage', () => {
-      // Mock high memory usage
-      Object.defineProperty(performance, 'memory', {
-        value: {
-          usedJSHeapSize: 9000000, // 90% of limit
-          totalJSHeapSize: 10000000,
-          jsHeapSizeLimit: 10000000,
-        },
-        writable: true,
-      });
-
-      memoryManager.startMonitoring(100);
-
-      // 메모리 통계 기록을 위해 시간 경과 시뮬레이션
-      setTimeout(() => {
-        const suggestions = memoryManager.getCleanupSuggestions();
-
-        expect(suggestions).toBeInstanceOf(Array);
-        expect(suggestions.length).toBeGreaterThanOrEqual(0);
-
-        memoryManager.stopMonitoring();
-      }, 150);
+  describe('backward compatibility', () => {
+    it('should maintain memoryManager alias', () => {
+      const { memoryManager } = require('@renderer/utils/memoryManager');
+      expect(memoryManager).toBe(cleanupManager);
     });
-  });
 
-  describe('clearStats', () => {
-    it('should clear all memory statistics', () => {
-      memoryManager.startMonitoring(100);
-
-      // 통계가 있는지 확인
-      let report = memoryManager.getMemoryReport();
-      expect(report.currentUsage).toBeGreaterThanOrEqual(0);
-
-      memoryManager.clearStats();
-
-      // 통계가 초기화되었는지 확인
-      report = memoryManager.getMemoryReport();
-      expect(report.currentUsage).toBe(0);
-
-      memoryManager.stopMonitoring();
+    it('should maintain useMemoryCleanup alias', () => {
+      const { useMemoryCleanup } = require('@renderer/utils/memoryManager');
+      expect(useMemoryCleanup).toBe(useCleanup);
     });
   });
 });
