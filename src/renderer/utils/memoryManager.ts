@@ -75,14 +75,16 @@ class MemoryManager {
    */
   private recordMemoryStats(): void {
     if ('memory' in performance) {
-      const memory = (performance as Performance & {
-        memory?: {
-          usedJSHeapSize: number;
-          totalJSHeapSize: number;
-          jsHeapSizeLimit: number;
-        };
-      }).memory;
-      
+      const memory = (
+        performance as Performance & {
+          memory?: {
+            usedJSHeapSize: number;
+            totalJSHeapSize: number;
+            jsHeapSizeLimit: number;
+          };
+        }
+      ).memory;
+
       if (memory) {
         this.memoryStats.push({
           usedJSHeapSize: memory.usedJSHeapSize,
