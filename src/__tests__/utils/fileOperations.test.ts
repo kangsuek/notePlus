@@ -84,7 +84,12 @@ describe('fileOperations', () => {
 
       const result = await saveFile('/test/file.md', 'content');
 
-      expect(mockElectronAPI.invoke).toHaveBeenCalledWith('file:write', '/test/file.md', 'content');
+      expect(mockElectronAPI.invoke).toHaveBeenCalledWith(
+        'file:write',
+        '/test/file.md',
+        'content',
+        'UTF-8'
+      );
       expect(result).toEqual(mockResult);
     });
 
@@ -148,7 +153,8 @@ describe('fileOperations', () => {
       expect(mockElectronAPI.invoke).toHaveBeenCalledWith(
         'file:write',
         '/new/current-file.md',
-        'content'
+        'content',
+        'UTF-8'
       );
       expect(result).toEqual(mockSaveResult);
     });

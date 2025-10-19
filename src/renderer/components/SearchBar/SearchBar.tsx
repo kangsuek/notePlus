@@ -118,6 +118,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
         // If there are no results yet, trigger initial search
         if (searchQuery && totalResults === 0) {
           onSearch(searchQuery, options);
+        } else if (searchQuery && totalResults > 0) {
+          // If there are results, just navigate without re-searching
+          // This allows navigation through existing results
         }
 
         // Navigate to next/previous result
@@ -173,11 +176,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
     return null;
   }
 
-  const displayText = totalResults > 0
-    ? `${currentIndex + 1} / ${totalResults}`
-    : searchQuery
-    ? '결과 없음'
-    : '';
+  const displayText =
+    totalResults > 0 ? `${currentIndex + 1} / ${totalResults}` : searchQuery ? '결과 없음' : '';
 
   return (
     <div className="search-bar" data-testid="search-bar">

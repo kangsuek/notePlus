@@ -14,6 +14,11 @@ const isDev = process.env.NODE_ENV === 'development';
 // 메인 윈도우 인스턴스
 let mainWindow: BrowserWindow | null = null;
 
+// 윈도우 확장 타입 정의
+interface ExtendedBrowserWindow extends BrowserWindow {
+  __forceClose?: boolean;
+}
+
 // 최근 파일 관리자
 const recentFilesManager = new RecentFilesManager();
 
@@ -68,90 +73,92 @@ function createWindow() {
 
   // 개발 모드에서는 Vite 개발 서버 로드
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    void mainWindow.loadURL('http://localhost:5173');
     // 개발자 도구는 필요시 Cmd+Option+I (macOS) 또는 F12로 열기
     // mainWindow.webContents.openDevTools();
   } else {
     // 프로덕션에서는 빌드된 파일 로드
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    void mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
   // 윈도우 닫기 전 확인 (저장하지 않은 변경사항이 있을 경우)
-  mainWindow.on('close', async (event) => {
-    if (!mainWindow) return;
+  mainWindow.on('close', (event) => {
+    void (async () => {
+      if (!mainWindow) return;
 
-    // 이미 강제 종료 중이면 그냥 닫기
-    if ((mainWindow as any).__forceClose) {
-      return;
-    }
+      // 이미 강제 종료 중이면 그냥 닫기
+      if ((mainWindow as ExtendedBrowserWindow).__forceClose) {
+        return;
+      }
 
-    // 일단 닫기 중단
-    event.preventDefault();
+      // 일단 닫기 중단
+      event.preventDefault();
 
-    try {
-      // 렌더러로부터 isDirty 상태 확인
-      const isDirty = await mainWindow.webContents.executeJavaScript(
-        'window.__isDirty__ !== undefined ? window.__isDirty__ : false'
-      );
+      try {
+        // 렌더러로부터 isDirty 상태 확인
+        const isDirty = (await mainWindow.webContents.executeJavaScript(
+          'window.__isDirty__ !== undefined ? window.__isDirty__ : false'
+        )) as boolean;
 
-      if (isDirty) {
-        // 저장하지 않은 변경사항이 있으면 확인 다이얼로그 표시
-        const { response } = await dialog.showMessageBox(mainWindow, {
-          type: 'warning',
-          buttons: ['저장', '저장 안 함', '취소'],
-          defaultId: 0,
-          cancelId: 2,
-          title: '저장하지 않은 변경사항',
-          message: '저장하지 않은 변경사항이 있습니다.',
-          detail: '변경사항을 저장하시겠습니까?',
-        });
+        if (isDirty) {
+          // 저장하지 않은 변경사항이 있으면 확인 다이얼로그 표시
+          const { response } = await dialog.showMessageBox(mainWindow, {
+            type: 'warning',
+            buttons: ['저장', '저장 안 함', '취소'],
+            defaultId: 0,
+            cancelId: 2,
+            title: '저장하지 않은 변경사항',
+            message: '저장하지 않은 변경사항이 있습니다.',
+            detail: '변경사항을 저장하시겠습니까?',
+          });
 
-        if (response === 0) {
-          // 저장 버튼 클릭
-          mainWindow.webContents.send('menu:save-file');
+          if (response === 0) {
+            // 저장 버튼 클릭
+            mainWindow.webContents.send('menu:save-file');
 
-          // 저장 완료 대기 (최대 5초)
-          let saved = false;
-          for (let i = 0; i < 50; i++) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            const currentIsDirty = await mainWindow.webContents.executeJavaScript(
-              'window.__isDirty__ !== undefined ? window.__isDirty__ : false'
-            );
-            if (!currentIsDirty) {
-              saved = true;
-              break;
+            // 저장 완료 대기 (최대 5초)
+            let saved = false;
+            for (let i = 0; i < 50; i++) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              const currentIsDirty = (await mainWindow.webContents.executeJavaScript(
+                'window.__isDirty__ !== undefined ? window.__isDirty__ : false'
+              )) as boolean;
+              if (!currentIsDirty) {
+                saved = true;
+                break;
+              }
             }
-          }
 
-          if (saved || await confirmForceClose(mainWindow)) {
-            (mainWindow as any).__forceClose = true;
+            if (saved || (await confirmForceClose(mainWindow))) {
+              (mainWindow as ExtendedBrowserWindow).__forceClose = true;
+              mainWindow.close();
+              // macOS에서도 명시적으로 app.quit() 호출
+              app.quit();
+            }
+          } else if (response === 1) {
+            // 저장 안 함 버튼 클릭 - 바로 종료
+            (mainWindow as ExtendedBrowserWindow).__forceClose = true;
             mainWindow.close();
             // macOS에서도 명시적으로 app.quit() 호출
             app.quit();
           }
-        } else if (response === 1) {
-          // 저장 안 함 버튼 클릭 - 바로 종료
-          (mainWindow as any).__forceClose = true;
+          // response === 2 (취소) - 아무것도 하지 않음
+        } else {
+          // 변경사항 없음 - 바로 종료
+          (mainWindow as ExtendedBrowserWindow).__forceClose = true;
           mainWindow.close();
           // macOS에서도 명시적으로 app.quit() 호출
           app.quit();
         }
-        // response === 2 (취소) - 아무것도 하지 않음
-      } else {
-        // 변경사항 없음 - 바로 종료
-        (mainWindow as any).__forceClose = true;
+      } catch (error) {
+        console.error('Failed to check isDirty state:', error);
+        // 에러 발생 시 바로 종료
+        (mainWindow as ExtendedBrowserWindow).__forceClose = true;
         mainWindow.close();
         // macOS에서도 명시적으로 app.quit() 호출
         app.quit();
       }
-    } catch (error) {
-      console.error('Failed to check isDirty state:', error);
-      // 에러 발생 시 바로 종료
-      (mainWindow as any).__forceClose = true;
-      mainWindow.close();
-      // macOS에서도 명시적으로 app.quit() 호출
-      app.quit();
-    }
+    })();
   });
 
   // 윈도우가 닫힐 때
@@ -178,8 +185,8 @@ function setupIpcHandlers() {
     } else {
       // 현재 파일명이 없으면 기존 로직 사용
       defaultPath = lastSavePath
-        ? path.join(path.dirname(lastSavePath), 'untitled.md')
-        : path.join(app.getPath('documents'), 'untitled.md');
+        ? path.join(path.dirname(lastSavePath), 'untitled.txt')
+        : path.join(app.getPath('documents'), 'untitled.txt');
     }
 
     const result = await dialog.showSaveDialog(mainWindow, {
@@ -298,7 +305,11 @@ function setupIpcHandlers() {
     'file:write',
     async (_event, filePath: string, content: string, encoding: string = 'UTF-8') => {
       try {
-        console.log(`Saving file with encoding: ${encoding}`);
+        // 개발 모드에서만 로그 출력
+        if (isDev) {
+          // eslint-disable-next-line no-console
+          console.log(`Saving file with encoding: ${encoding}`);
+        }
 
         let buffer: Buffer;
 
@@ -308,7 +319,10 @@ function setupIpcHandlers() {
           const bom = Buffer.from([0xef, 0xbb, 0xbf]);
           const contentBuffer = Buffer.from(content, 'utf8');
           buffer = Buffer.concat([bom, contentBuffer]);
-          console.log('Added UTF-8 BOM');
+          if (isDev) {
+            // eslint-disable-next-line no-console
+            console.log('Added UTF-8 BOM');
+          }
         } else if (encoding === 'UTF-8') {
           // UTF-8 (BOM 없음)
           buffer = Buffer.from(content, 'utf8');
@@ -317,13 +331,19 @@ function setupIpcHandlers() {
           const bom = Buffer.from([0xff, 0xfe]);
           const contentBuffer = iconv.encode(content, 'UTF-16LE');
           buffer = Buffer.concat([bom, contentBuffer]);
-          console.log('Added UTF-16LE BOM');
+          if (isDev) {
+            // eslint-disable-next-line no-console
+            console.log('Added UTF-16LE BOM');
+          }
         } else if (encoding === 'UTF-16BE') {
           // UTF-16BE BOM 추가
           const bom = Buffer.from([0xfe, 0xff]);
           const contentBuffer = iconv.encode(content, 'UTF-16BE');
           buffer = Buffer.concat([bom, contentBuffer]);
-          console.log('Added UTF-16BE BOM');
+          if (isDev) {
+            // eslint-disable-next-line no-console
+            console.log('Added UTF-16BE BOM');
+          }
         } else {
           // 기타 인코딩 (EUC-KR, CP949 등)
           buffer = iconv.encode(content, encoding);
@@ -355,7 +375,10 @@ function setupIpcHandlers() {
 
       // Detect encoding
       const encoding = detectEncoding(buffer);
-      console.log(`Detected encoding for ${filePath}: ${encoding}`);
+      if (isDev) {
+        // eslint-disable-next-line no-console
+        console.log(`Detected encoding for ${filePath}: ${encoding}`);
+      }
 
       // Remove BOM if present and decode
       let content: string;
@@ -366,19 +389,28 @@ function setupIpcHandlers() {
         // UTF-8 BOM: EF BB BF
         if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
           bufferWithoutBOM = buffer.subarray(3);
-          console.log('Removed UTF-8 BOM');
+          if (isDev) {
+            // eslint-disable-next-line no-console
+            console.log('Removed UTF-8 BOM');
+          }
         }
       } else if (encoding === 'UTF-16LE') {
         // UTF-16LE BOM: FF FE
         if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
           bufferWithoutBOM = buffer.subarray(2);
-          console.log('Removed UTF-16LE BOM');
+          if (isDev) {
+            // eslint-disable-next-line no-console
+            console.log('Removed UTF-16LE BOM');
+          }
         }
       } else if (encoding === 'UTF-16BE') {
         // UTF-16BE BOM: FE FF
         if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
           bufferWithoutBOM = buffer.subarray(2);
-          console.log('Removed UTF-16BE BOM');
+          if (isDev) {
+            // eslint-disable-next-line no-console
+            console.log('Removed UTF-16BE BOM');
+          }
         }
       }
 
@@ -415,7 +447,7 @@ function setupIpcHandlers() {
   });
 
   // 최근 파일 목록에 추가
-  ipcMain.handle('recentFiles:add', async (_event, filePath: string) => {
+  ipcMain.handle('recentFiles:add', (_event, filePath: string) => {
     try {
       recentFilesManager.addFile(filePath);
       // 메뉴 업데이트
@@ -431,7 +463,7 @@ function setupIpcHandlers() {
   });
 
   // 최근 파일 목록 조회
-  ipcMain.handle('recentFiles:get', async () => {
+  ipcMain.handle('recentFiles:get', () => {
     try {
       const files = recentFilesManager.getFiles();
       // 파일 존재 여부 검증 및 필터링 (드래그 앤 드롭 파일 제외)
@@ -459,7 +491,7 @@ function setupIpcHandlers() {
   });
 
   // 최근 파일에서 제거
-  ipcMain.handle('recentFiles:remove', async (_event, filePath: string) => {
+  ipcMain.handle('recentFiles:remove', (_event, filePath: string) => {
     try {
       recentFilesManager.removeFile(filePath);
       return { success: true };
@@ -473,7 +505,7 @@ function setupIpcHandlers() {
   });
 
   // 설정 조회
-  ipcMain.handle('settings:get', async () => {
+  ipcMain.handle('settings:get', () => {
     try {
       const settings = settingsManager.getSettings();
       return { success: true, settings };
@@ -487,9 +519,10 @@ function setupIpcHandlers() {
   });
 
   // 설정 저장
-  ipcMain.handle('settings:save', async (_event, settings) => {
+  ipcMain.handle('settings:save', (_event, settings: unknown) => {
     try {
-      settingsManager.saveSettings(settings);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+      settingsManager.saveSettings(settings as any);
       return { success: true };
     } catch (error) {
       console.error('Failed to save settings:', error);
@@ -501,7 +534,7 @@ function setupIpcHandlers() {
   });
 
   // 설정 초기화
-  ipcMain.handle('settings:reset', async () => {
+  ipcMain.handle('settings:reset', () => {
     try {
       settingsManager.resetSettings();
       return { success: true };
@@ -515,7 +548,7 @@ function setupIpcHandlers() {
   });
 
   // isDirty 상태 조회 (창 닫기 전 확인용)
-  ipcMain.handle('app:get-is-dirty', async () => {
+  ipcMain.handle('app:get-is-dirty', () => {
     try {
       // 렌더러에서 직접 응답하도록 이벤트 전송
       return { success: true };
@@ -540,7 +573,7 @@ function updateMenu() {
 /**
  * Electron 앱 준비 완료
  */
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   setupIpcHandlers();
   createWindow();
   updateMenu(); // 메뉴 설정
@@ -568,7 +601,7 @@ app.on('window-all-closed', () => {
  */
 app.on('before-quit', (event) => {
   // mainWindow가 있고, forceClose 플래그가 설정되지 않은 경우
-  if (mainWindow && !(mainWindow as any).__forceClose) {
+  if (mainWindow && !(mainWindow as ExtendedBrowserWindow).__forceClose) {
     // close 이벤트 핸들러에서 처리하도록 함
     event.preventDefault();
     mainWindow.close();

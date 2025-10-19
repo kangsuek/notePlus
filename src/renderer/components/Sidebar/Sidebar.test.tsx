@@ -25,7 +25,7 @@ describe('Sidebar', () => {
 
   it('should display default filename when not provided', () => {
     render(<Sidebar />);
-    expect(screen.getByText('untitled.md')).toBeInTheDocument();
+    expect(screen.getByText('untitled.txt')).toBeInTheDocument();
   });
 
   it('should display sidebar header below filename', () => {

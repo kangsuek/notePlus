@@ -8,9 +8,28 @@ const ILLEGAL_CHARS = /[/\\:*?"<>|]/;
 
 // Windows 예약어
 const RESERVED_NAMES = new Set([
-  'CON', 'PRN', 'AUX', 'NUL',
-  'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-  'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+  'CON',
+  'PRN',
+  'AUX',
+  'NUL',
+  'COM1',
+  'COM2',
+  'COM3',
+  'COM4',
+  'COM5',
+  'COM6',
+  'COM7',
+  'COM8',
+  'COM9',
+  'LPT1',
+  'LPT2',
+  'LPT3',
+  'LPT4',
+  'LPT5',
+  'LPT6',
+  'LPT7',
+  'LPT8',
+  'LPT9',
 ]);
 
 // 최대 파일명 길이 (대부분의 파일 시스템에서 255바이트)
@@ -69,7 +88,7 @@ export function validateFileName(fileName: string): boolean {
 export function sanitizeFileName(fileName: string): string {
   // 빈 문자열인 경우 기본값
   if (!fileName || fileName.trim().length === 0) {
-    return 'untitled.md';
+    return 'untitled.txt';
   }
 
   // 공백 trim 및 금지 문자 제거 (새 정규식 인스턴스 사용 - replace all)
@@ -77,7 +96,7 @@ export function sanitizeFileName(fileName: string): string {
 
   // 여전히 빈 문자열이면 기본값
   if (sanitized.length === 0) {
-    return 'untitled.md';
+    return 'untitled.txt';
   }
 
   // 앞뒤 점과 공백 제거
@@ -99,7 +118,7 @@ export function sanitizeFileName(fileName: string): string {
 
   // 최종 검증 - 여전히 유효하지 않으면 기본값
   if (!validateFileName(sanitized)) {
-    return 'untitled.md';
+    return 'untitled.txt';
   }
 
   return sanitized;
@@ -140,4 +159,3 @@ export function getFileNameError(fileName: string): string | null {
 
   return null;
 }
-

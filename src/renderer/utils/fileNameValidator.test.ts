@@ -67,10 +67,9 @@ describe('fileNameValidator', () => {
     });
 
     it('should return default name for invalid input', () => {
-      expect(sanitizeFileName('')).toBe('untitled.md');
-      expect(sanitizeFileName('   ')).toBe('untitled.md');
-      expect(sanitizeFileName('////')).toBe('untitled.md');
+      expect(sanitizeFileName('')).toBe('untitled.txt');
+      expect(sanitizeFileName('   ')).toBe('untitled.txt');
+      expect(sanitizeFileName('////')).toBe('untitled.txt');
     });
   });
 });
-

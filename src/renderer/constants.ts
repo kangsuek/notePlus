@@ -40,7 +40,7 @@ export const UI_CONFIG = {
  */
 export const FILE_CONFIG = {
   /** 기본 파일명 */
-  DEFAULT_FILENAME: 'untitled.md',
+  DEFAULT_FILENAME: 'untitled.txt',
   /** 파일명 최대 길이 */
   MAX_FILENAME_LENGTH: 255,
   /** 최근 파일 목록 최대 개수 */
@@ -121,4 +121,3 @@ export const LAYOUT_CONFIG = {
   /** 패널 최소 크기 비율 (%) */
   PANEL_MIN_SIZE: 20,
 } as const;
-

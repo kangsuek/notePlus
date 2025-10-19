@@ -50,7 +50,7 @@ describe('SearchBar', () => {
 
     it('should call onSearch when Enter is pressed', async () => {
       const onSearch = jest.fn();
-      render(<SearchBar {...defaultProps} onSearch={onSearch} />);
+      render(<SearchBar {...defaultProps} onSearch={onSearch} totalResults={0} />);
       const input = screen.getByPlaceholderText(/찾기/);
 
       fireEvent.change(input, { target: { value: 'test' } });
@@ -73,7 +73,7 @@ describe('SearchBar', () => {
       fireEvent.change(input, { target: { value: 'test' } });
 
       // Wait a bit to ensure onSearch is not called
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(onSearch).not.toHaveBeenCalled();
     });
@@ -139,7 +139,7 @@ describe('SearchBar', () => {
     it('should call onSearch and onNext on Enter key', () => {
       const onSearch = jest.fn();
       const onNext = jest.fn();
-      render(<SearchBar {...defaultProps} onSearch={onSearch} onNext={onNext} />);
+      render(<SearchBar {...defaultProps} onSearch={onSearch} onNext={onNext} totalResults={0} />);
 
       const input = screen.getByPlaceholderText(/찾기/);
       fireEvent.change(input, { target: { value: 'test' } });
@@ -156,7 +156,9 @@ describe('SearchBar', () => {
     it('should call onSearch and onPrevious on Shift+Enter', () => {
       const onSearch = jest.fn();
       const onPrevious = jest.fn();
-      render(<SearchBar {...defaultProps} onSearch={onSearch} onPrevious={onPrevious} />);
+      render(
+        <SearchBar {...defaultProps} onSearch={onSearch} onPrevious={onPrevious} totalResults={0} />
+      );
 
       const input = screen.getByPlaceholderText(/찾기/);
       fireEvent.change(input, { target: { value: 'test' } });

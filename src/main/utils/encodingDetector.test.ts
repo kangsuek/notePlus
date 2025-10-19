@@ -22,7 +22,7 @@ describe('encodingDetector', () => {
       const content = Buffer.from('Hello World 안녕하세요', 'utf-8');
       const buffer = Buffer.concat([bom, content]);
       const encoding = detectEncoding(buffer);
-      expect(encoding).toBe('UTF-8');
+      expect(encoding).toBe('UTF-8(BOM)');
     });
 
     test('should detect UTF-16LE with BOM', () => {
