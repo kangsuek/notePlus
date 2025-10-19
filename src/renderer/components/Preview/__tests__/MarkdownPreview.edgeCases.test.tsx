@@ -10,17 +10,19 @@ describe('MarkdownPreview - Edge Cases and Performance', () => {
   });
 
   it('should handle markdown with special characters', () => {
-    render(<MarkdownPreview markdown="Special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?" />);
+    const specialChars = 'Special chars: !@#$%^&*()_+-=[]{}|;\':",./<>?';
+    render(<MarkdownPreview markdown={specialChars} />);
     expect(screen.getByText(/Special chars:/)).toBeInTheDocument();
   });
 
   it('should handle markdown with HTML entities', () => {
-    render(<MarkdownPreview markdown="&lt;div&gt; &amp; &quot;quoted&quot;" />);
+    render(<MarkdownPreview markdown='&lt;div&gt; &amp; "quoted"' />);
     expect(screen.getByTestId('markdown-preview')).toBeInTheDocument();
   });
 
   it('should handle markdown with mixed line endings', () => {
-    render(<MarkdownPreview markdown="Line 1\r\nLine 2\nLine 3\rLine 4" />);
+    const mixedEndings = 'Line 1\r\nLine 2\nLine 3\rLine 4';
+    render(<MarkdownPreview markdown={mixedEndings} />);
     expect(screen.getByTestId('markdown-preview')).toBeInTheDocument();
   });
 

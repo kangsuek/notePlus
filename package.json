@@ -78,7 +78,7 @@
       "output": "build"
     },
     "mac": {
-      "target": "dmg",
+      "target": "dir",
       "category": "public.app-category.productivity"
     }
   }
