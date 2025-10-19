@@ -184,6 +184,17 @@ const MarkdownPreview: React.FC<ExtendedMarkdownPreviewProps> = React.memo(({
           'checked',
           'disabled', // checkbox 속성
         ],
+        // 보안 강화 설정
+        FORBID_TAGS: ['script', 'object', 'embed', 'iframe', 'form', 'input[type="submit"]', 'input[type="button"]'],
+        FORBID_ATTR: ['onload', 'onerror', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onchange', 'onsubmit'],
+        ALLOW_DATA_ATTR: false,
+        ALLOW_UNKNOWN_PROTOCOLS: false,
+        SANITIZE_DOM: true,
+        KEEP_CONTENT: true,
+        RETURN_DOM: false,
+        RETURN_DOM_FRAGMENT: false,
+        // href 속성에 대한 추가 보안 검증
+        ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
       });
 
       // 3. 계산 결과를 파란색으로 표시 (= 숫자 패턴)

@@ -21,6 +21,9 @@ interface ErrorReport {
     sessionId?: string;
     feature: string;
   };
+  stack?: string;
+  message?: string;
+  additionalInfo?: any;
 }
 
 class ErrorHandler {
@@ -115,7 +118,9 @@ class ErrorHandler {
 
     // 에러 리포트 전송 (개발 환경에서만)
     if (process.env.NODE_ENV === 'development') {
-      this.sendErrorReport(report);
+      // 민감한 정보 제거 후 리포트 전송
+      const sanitizedReport = this.sanitizeErrorReport(report);
+      this.sendErrorReport(sanitizedReport);
     }
   }
 
@@ -208,6 +213,75 @@ class ErrorHandler {
    */
   setReportingEnabled(enabled: boolean): void {
     this.isReportingEnabled = enabled;
+  }
+
+  /**
+   * 에러 리포트에서 민감한 정보 제거
+   */
+  private sanitizeErrorReport(report: ErrorReport): ErrorReport {
+    const sanitized = { ...report };
+
+    // 스택 트레이스에서 민감한 경로 정보 제거
+    if (sanitized.stack) {
+      sanitized.stack = sanitized.stack
+        .replace(/\/Users\/[^\/]+\//g, '/Users/***/')
+        .replace(/\/home\/[^\/]+\//g, '/home/***/')
+        .replace(/C:\\Users\\[^\\]+\\/g, 'C:\\Users\\***\\')
+        .replace(/password[=:]\s*[^\s&]+/gi, 'password=***')
+        .replace(/token[=:]\s*[^\s&]+/gi, 'token=***')
+        .replace(/key[=:]\s*[^\s&]+/gi, 'key=***');
+    }
+
+    // 메시지에서 민감한 정보 제거
+    if (sanitized.message) {
+      sanitized.message = sanitized.message
+        .replace(/password[=:]\s*[^\s&]+/gi, 'password=***')
+        .replace(/token[=:]\s*[^\s&]+/gi, 'token=***')
+        .replace(/key[=:]\s*[^\s&]+/gi, 'key=***');
+    }
+
+    // 추가 정보에서 민감한 데이터 제거
+    if (sanitized.additionalInfo) {
+      sanitized.additionalInfo = this.sanitizeObject(sanitized.additionalInfo);
+    }
+
+    return sanitized;
+  }
+
+  /**
+   * 객체에서 민감한 정보 제거
+   */
+  private sanitizeObject(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+
+    if (typeof obj === 'string') {
+      return obj
+        .replace(/password[=:]\s*[^\s&]+/gi, 'password=***')
+        .replace(/token[=:]\s*[^\s&]+/gi, 'token=***')
+        .replace(/key[=:]\s*[^\s&]+/gi, 'key=***')
+        .replace(/secret[=:]\s*[^\s&]+/gi, 'secret=***');
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeObject(item));
+    }
+
+    if (typeof obj === 'object') {
+      const sanitized: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        // 민감한 키 제외
+        if (['password', 'token', 'key', 'secret', 'apiKey', 'authToken', 'privateKey'].includes(key.toLowerCase())) {
+          sanitized[key] = '***';
+        } else {
+          sanitized[key] = this.sanitizeObject(value);
+        }
+      }
+      return sanitized;
+    }
+
+    return obj;
   }
 }
 
