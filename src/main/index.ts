@@ -73,10 +73,10 @@ function createWindow() {
       event.preventDefault();
 
       // 비동기로 isDirty 상태 확인
-      (async () => {
+      void (async () => {
         try {
           if (!mainWindow) return;
-          
+
           // 렌더러 프로세스에서 isDirty 상태 확인
           const isDirty = (await mainWindow.webContents.executeJavaScript(
             'window.__isDirty__ !== undefined ? window.__isDirty__ : false'
@@ -112,7 +112,7 @@ function createWindow() {
                 }
               }
 
-              if (saved || (mainWindow && await confirmForceClose(mainWindow))) {
+              if (saved || (mainWindow && (await confirmForceClose(mainWindow)))) {
                 if (mainWindow) {
                   (mainWindow as ExtendedBrowserWindow).__forceClose = true;
                   mainWindow.close();
@@ -166,7 +166,7 @@ function createWindow() {
 }
 
 // 앱이 준비되면 윈도우 생성
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   createWindow();
 
   // macOS에서 독 아이콘 클릭 시 윈도우 재생성
