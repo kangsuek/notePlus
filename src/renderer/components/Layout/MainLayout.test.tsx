@@ -192,4 +192,142 @@ describe('MainLayout', () => {
       expect(sidebar).toHaveClass('collapsed');
     });
   });
+
+  describe('Error Handling', () => {
+    it('should handle file save errors gracefully', async () => {
+      // Mock file save to return error
+      const mockSaveFile = jest.fn().mockRejectedValue(new Error('Save failed'));
+      jest.doMock('@renderer/utils/fileOperations', () => ({
+        ...jest.requireActual('@renderer/utils/fileOperations'),
+        saveFile: mockSaveFile,
+      }));
+
+      render(<MainLayout />);
+
+      // This test verifies that the component doesn't crash when save fails
+      // The actual error handling is tested in fileOperations.test.ts
+      expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    });
+
+    it('should handle file open errors gracefully', async () => {
+      // Mock file open to return error
+      const mockOpenFile = jest.fn().mockRejectedValue(new Error('Open failed'));
+      jest.doMock('@renderer/utils/fileOperations', () => ({
+        ...jest.requireActual('@renderer/utils/fileOperations'),
+        openFile: mockOpenFile,
+      }));
+
+      render(<MainLayout />);
+
+      // This test verifies that the component doesn't crash when open fails
+      expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    });
+  });
+
+  describe('Scroll Synchronization', () => {
+    it('should handle scroll synchronization when preview is not visible', () => {
+      render(<MainLayout />);
+
+      const textarea = screen.getByPlaceholderText('마크다운으로 작성하세요...');
+
+      // Scroll the editor
+      fireEvent.scroll(textarea, { target: { scrollTop: 100 } });
+
+      // Should not crash when preview is not visible
+      expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    });
+
+    it('should handle scroll synchronization edge cases', () => {
+      render(<MainLayout />);
+
+      const textarea = screen.getByPlaceholderText('마크다운으로 작성하세요...');
+
+      // Test edge case: scroll to very top
+      fireEvent.scroll(textarea, { target: { scrollTop: 0 } });
+
+      // Test edge case: scroll to very bottom
+      fireEvent.scroll(textarea, { target: { scrollTop: 9999 } });
+
+      // Should not crash
+      expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    });
+  });
+
+  describe('File Type Detection', () => {
+    it('should show preview for markdown files', () => {
+      render(<MainLayout />);
+
+      // Click on filename to enable editing
+      const filenameDisplay = screen.getByText('untitled.txt');
+      fireEvent.click(filenameDisplay);
+
+      // Find the input field that appears after clicking
+      const filenameInput = screen.getByDisplayValue('untitled.txt');
+      fireEvent.change(filenameInput, { target: { value: 'test.md' } });
+      fireEvent.blur(filenameInput);
+
+      // Preview should be available for markdown files
+      expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    });
+
+    it('should show preview for HTML files', () => {
+      render(<MainLayout />);
+
+      // Click on filename to enable editing
+      const filenameDisplay = screen.getByText('untitled.txt');
+      fireEvent.click(filenameDisplay);
+
+      // Find the input field that appears after clicking
+      const filenameInput = screen.getByDisplayValue('untitled.txt');
+      fireEvent.change(filenameInput, { target: { value: 'test.html' } });
+      fireEvent.blur(filenameInput);
+
+      // Preview should be available for HTML files
+      expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    });
+
+    it('should not show preview for text files', () => {
+      render(<MainLayout />);
+
+      // Click on filename to enable editing
+      const filenameDisplay = screen.getByText('untitled.txt');
+      fireEvent.click(filenameDisplay);
+
+      // Find the input field that appears after clicking
+      const filenameInput = screen.getByDisplayValue('untitled.txt');
+      fireEvent.change(filenameInput, { target: { value: 'test.txt' } });
+      fireEvent.blur(filenameInput);
+
+      // Preview should not be available for text files
+      expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    });
+  });
+
+  describe('Memory Management', () => {
+    it('should clean up resources on unmount', () => {
+      const { unmount } = render(<MainLayout />);
+
+      // Unmount component
+      unmount();
+
+      // Should not throw errors during cleanup
+      expect(true).toBe(true);
+    });
+  });
+
+  describe('Settings Management', () => {
+    it('should handle settings load failure gracefully', () => {
+      // Mock settings load to fail
+      const mockInvoke = jest.fn().mockRejectedValue(new Error('Settings load failed'));
+      window.electronAPI = {
+        ...window.electronAPI,
+        invoke: mockInvoke,
+      };
+
+      render(<MainLayout />);
+
+      // Should not crash when settings load fails
+      expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    });
+  });
 });

@@ -1,5 +1,7 @@
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@/__tests__/test-utils';
 import Editor from './Editor';
+import type { EditorRef } from '@renderer/types';
 
 describe('Editor', () => {
   it('should render without crashing', () => {
@@ -673,6 +675,277 @@ describe('Editor', () => {
       // 단순 숫자는 계산되지 않음 (preventDefault 안 함)
       // 테스트 환경에서는 실제 = 키 입력이 시뮬레이션되지 않으므로 원래 텍스트 유지
       expect(textarea.value).toBe('123');
+    });
+  });
+
+  describe('SearchBar functionality', () => {
+    it('should open search when openSearch is called', async () => {
+      const ref = React.createRef<EditorRef>();
+      render(<Editor ref={ref} />);
+
+      // openSearch 메서드 호출
+      ref.current?.openSearch();
+
+      // SearchBar가 표시되어야 함
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('검색...')).toBeInTheDocument();
+      });
+    });
+
+    it('should open replace when openReplace is called', async () => {
+      const ref = React.createRef<EditorRef>();
+      render(<Editor ref={ref} />);
+
+      // openReplace 메서드 호출
+      ref.current?.openReplace();
+
+      // SearchBar가 replace 모드로 표시되어야 함
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('검색...')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('바꾸기...')).toBeInTheDocument();
+      });
+    });
+
+    it('should pre-fill search query with selected text', async () => {
+      const ref = React.createRef<EditorRef>();
+      render(<Editor value="Hello World" ref={ref} />);
+      const textarea = screen.getByPlaceholderText(
+        '마크다운으로 작성하세요...'
+      ) as HTMLTextAreaElement;
+
+      // 텍스트 선택
+      textarea.setSelectionRange(0, 5); // "Hello" 선택
+
+      // openSearch 호출
+      ref.current?.openSearch();
+
+      // 선택된 텍스트가 검색창에 미리 채워져야 함
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Hello')).toBeInTheDocument();
+      });
+    });
+
+    it('should handle search without selected text', async () => {
+      const ref = React.createRef<EditorRef>();
+      render(<Editor ref={ref} />);
+
+      // 텍스트 선택 없이 openSearch 호출
+      ref.current?.openSearch();
+
+      // 빈 검색창이 표시되어야 함
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('검색...')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Error handling and edge cases', () => {
+    it('should handle invalid math expressions gracefully', () => {
+      const handleChange = jest.fn();
+      render(<Editor onChange={handleChange} fileName="test.md" />);
+      const textarea = screen.getByPlaceholderText('마크다운으로 작성하세요...');
+
+      // 잘못된 수식 입력
+      fireEvent.change(textarea, { target: { value: 'invalid +' } });
+      fireEvent.keyDown(textarea, { key: '=' });
+
+      // 에러가 발생해도 앱이 크래시되지 않아야 함
+      expect(textarea).toBeInTheDocument();
+    });
+
+    it('should handle empty textarea gracefully', () => {
+      const handleChange = jest.fn();
+      render(<Editor onChange={handleChange} />);
+      const textarea = screen.getByPlaceholderText('마크다운으로 작성하세요...');
+
+      // 빈 텍스트에서 Tab 키 처리
+      fireEvent.keyDown(textarea, { key: 'Tab' });
+
+      // 4개의 공백이 삽입되어야 함
+      expect(textarea).toHaveValue('    ');
+    });
+
+    it('should handle very long text without performance issues', () => {
+      const handleChange = jest.fn();
+      const longText = 'Line\n'.repeat(1000); // 1000줄의 텍스트
+      render(<Editor onChange={handleChange} value={longText} />);
+
+      const textarea = screen.getByPlaceholderText('마크다운으로 작성하세요...');
+      expect(textarea).toHaveValue(longText);
+
+      // 라인 넘버가 올바르게 표시되어야 함
+      expect(screen.getByText('1')).toBeInTheDocument();
+    });
+
+    it('should handle special characters in markdown', () => {
+      const handleChange = jest.fn();
+      render(<Editor onChange={handleChange} fileName="test.md" />);
+      const textarea = screen.getByPlaceholderText('마크다운으로 작성하세요...');
+
+      const specialText = '**Bold** *Italic* `Code` [Link](url)';
+      fireEvent.change(textarea, { target: { value: specialText } });
+
+      expect(textarea).toHaveValue(specialText);
+      expect(handleChange).toHaveBeenCalledWith(specialText);
+    });
+  });
+
+  describe('Keyboard shortcuts edge cases', () => {
+    it('should handle Cmd+B with no selection at end of text', () => {
+      const handleChange = jest.fn();
+      render(<Editor onChange={handleChange} fileName="test.md" />);
+      const textarea = screen.getByPlaceholderText(
+        '마크다운으로 작성하세요...'
+      ) as HTMLTextAreaElement;
+
+      fireEvent.change(textarea, { target: { value: 'Hello' } });
+      // 커서를 텍스트 끝으로 이동
+      textarea.setSelectionRange(5, 5);
+
+      fireEvent.keyDown(textarea, { key: 'b', metaKey: true });
+
+      expect(textarea).toHaveValue('Hello****');
+    });
+
+    it('should handle Cmd+I with no selection at beginning of text', () => {
+      const handleChange = jest.fn();
+      render(<Editor onChange={handleChange} fileName="test.md" />);
+      const textarea = screen.getByPlaceholderText(
+        '마크다운으로 작성하세요...'
+      ) as HTMLTextAreaElement;
+
+      fireEvent.change(textarea, { target: { value: 'Hello' } });
+      // 커서를 텍스트 시작으로 이동
+      textarea.setSelectionRange(0, 0);
+
+      fireEvent.keyDown(textarea, { key: 'i', metaKey: true });
+
+      expect(textarea).toHaveValue('**Hello');
+    });
+
+    it('should handle Cmd+K with no selection', () => {
+      const handleChange = jest.fn();
+      render(<Editor onChange={handleChange} fileName="test.md" />);
+      const textarea = screen.getByPlaceholderText(
+        '마크다운으로 작성하세요...'
+      ) as HTMLTextAreaElement;
+
+      fireEvent.change(textarea, { target: { value: 'Hello' } });
+      textarea.setSelectionRange(2, 2); // 중간 위치
+
+      fireEvent.keyDown(textarea, { key: 'k', metaKey: true });
+
+      expect(textarea).toHaveValue('He[text](url)llo');
+    });
+  });
+
+  describe('Markdown list edge cases', () => {
+    it('should handle nested list with mixed indentation', () => {
+      const handleChange = jest.fn();
+      render(<Editor onChange={handleChange} fileName="test.md" />);
+      const textarea = screen.getByPlaceholderText(
+        '마크다운으로 작성하세요...'
+      ) as HTMLTextAreaElement;
+
+      const nestedList = '- Item 1\n  - Nested item\n    - Deep nested';
+      fireEvent.change(textarea, { target: { value: nestedList } });
+
+      // 커서를 마지막 줄 끝으로 이동하고 Enter
+      textarea.setSelectionRange(nestedList.length, nestedList.length);
+      fireEvent.keyDown(textarea, { key: 'Enter' });
+
+      // 마지막 호출된 값이 올바른지 확인
+      const lastCall = handleChange.mock.calls[handleChange.mock.calls.length - 1][0];
+      expect(lastCall).toBe(nestedList + '\n        - ');
+    });
+
+    it('should handle empty checkbox list item', () => {
+      const handleChange = jest.fn();
+      render(<Editor onChange={handleChange} fileName="test.md" />);
+      const textarea = screen.getByPlaceholderText(
+        '마크다운으로 작성하세요...'
+      ) as HTMLTextAreaElement;
+
+      const checkboxList = '- [ ] Task 1\n- [ ] ';
+      fireEvent.change(textarea, { target: { value: checkboxList } });
+
+      // 빈 체크박스 항목에서 Enter
+      textarea.setSelectionRange(checkboxList.length, checkboxList.length);
+      fireEvent.keyDown(textarea, { key: 'Enter' });
+
+      // 마지막 호출된 값이 올바른지 확인 (빈 항목이 제거되어야 함)
+      const lastCall = handleChange.mock.calls[handleChange.mock.calls.length - 1][0];
+      expect(lastCall).toBe('- [ ] Task 1\n');
+    });
+
+    it('should handle ordered list with custom numbering', () => {
+      const handleChange = jest.fn();
+      render(<Editor onChange={handleChange} fileName="test.md" />);
+      const textarea = screen.getByPlaceholderText(
+        '마크다운으로 작성하세요...'
+      ) as HTMLTextAreaElement;
+
+      const orderedList = '5. Custom numbered item';
+      fireEvent.change(textarea, { target: { value: orderedList } });
+
+      textarea.setSelectionRange(orderedList.length, orderedList.length);
+      fireEvent.keyDown(textarea, { key: 'Enter' });
+
+      expect(handleChange).toHaveBeenCalledWith(orderedList + '\n6. ');
+    });
+  });
+
+  describe('Scroll synchronization', () => {
+    it('should handle scroll events', () => {
+      const handleScroll = jest.fn();
+      render(<Editor onScroll={handleScroll} />);
+      const textarea = screen.getByPlaceholderText('마크다운으로 작성하세요...');
+
+      fireEvent.scroll(textarea, { target: { scrollTop: 100 } });
+
+      expect(handleScroll).toHaveBeenCalled();
+    });
+
+    it('should handle scroll with no onScroll handler', () => {
+      render(<Editor />);
+      const textarea = screen.getByPlaceholderText('마크다운으로 작성하세요...');
+
+      // onScroll 핸들러가 없어도 스크롤 이벤트가 크래시하지 않아야 함
+      expect(() => {
+        fireEvent.scroll(textarea, { target: { scrollTop: 100 } });
+      }).not.toThrow();
+    });
+  });
+
+  describe('Cursor position tracking', () => {
+    it('should track cursor position changes', () => {
+      const handleCursorChange = jest.fn();
+      render(<Editor onCursorChange={handleCursorChange} />);
+      const textarea = screen.getByPlaceholderText(
+        '마크다운으로 작성하세요...'
+      ) as HTMLTextAreaElement;
+
+      fireEvent.change(textarea, { target: { value: 'Hello\nWorld' } });
+      textarea.setSelectionRange(6, 6); // 두 번째 줄 시작
+
+      fireEvent.click(textarea);
+
+      expect(handleCursorChange).toHaveBeenCalledWith({ line: 2, column: 1 });
+    });
+
+    it('should handle cursor position at end of text', () => {
+      const handleCursorChange = jest.fn();
+      render(<Editor onCursorChange={handleCursorChange} />);
+      const textarea = screen.getByPlaceholderText(
+        '마크다운으로 작성하세요...'
+      ) as HTMLTextAreaElement;
+
+      fireEvent.change(textarea, { target: { value: 'Hello World' } });
+      textarea.setSelectionRange(11, 11); // 텍스트 끝
+
+      fireEvent.click(textarea);
+
+      expect(handleCursorChange).toHaveBeenCalledWith({ line: 1, column: 12 });
     });
   });
 });
