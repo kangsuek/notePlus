@@ -13,7 +13,7 @@ HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
     width: text.length * 8, // 간단한 폭 계산 (고정폭 가정)
   })),
   font: '',
-})) as any;
+})) as unknown as HTMLCanvasElement['getContext'];
 
 // Mock Electron IPC
 global.window = Object.create(window);

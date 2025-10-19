@@ -163,7 +163,7 @@ const MainLayout: React.FC = React.memo(() => {
 
   // isDirty 상태를 전역으로 노출 (메인 프로세스에서 접근 가능하도록)
   useEffect(() => {
-    (window as any).__isDirty__ = isDirty;
+    (window as typeof window & { __isDirty__?: boolean }).__isDirty__ = isDirty;
   }, [isDirty]);
 
   // 메모리 정리 등록

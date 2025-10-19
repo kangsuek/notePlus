@@ -80,7 +80,11 @@ export class RecentFilesManager {
    * @returns 최근 파일 목록
    */
   getFiles(): RecentFile[] {
-    const data = this.store.get(this.STORE_KEY, []) as any[];
+    const data = this.store.get(this.STORE_KEY, []) as Array<{
+      path: string;
+      lastOpened: string | Date;
+      displayName?: string;
+    }>;
 
     // Date 객체로 변환
     return data.map((item) => ({

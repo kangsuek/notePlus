@@ -75,13 +75,22 @@ class MemoryManager {
    */
   private recordMemoryStats(): void {
     if ('memory' in performance) {
-      const memory = (performance as any).memory;
-      this.memoryStats.push({
-        usedJSHeapSize: memory.usedJSHeapSize,
-        totalJSHeapSize: memory.totalJSHeapSize,
-        jsHeapSizeLimit: memory.jsHeapSizeLimit,
-        timestamp: Date.now(),
-      });
+      const memory = (performance as Performance & {
+        memory?: {
+          usedJSHeapSize: number;
+          totalJSHeapSize: number;
+          jsHeapSizeLimit: number;
+        };
+      }).memory;
+      
+      if (memory) {
+        this.memoryStats.push({
+          usedJSHeapSize: memory.usedJSHeapSize,
+          totalJSHeapSize: memory.totalJSHeapSize,
+          jsHeapSizeLimit: memory.jsHeapSizeLimit,
+          timestamp: Date.now(),
+        });
+      }
 
       // 최대 50개 통계만 유지
       if (this.memoryStats.length > 50) {

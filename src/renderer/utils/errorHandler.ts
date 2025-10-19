@@ -143,8 +143,10 @@ class ErrorHandler {
     const message = `오류가 발생했습니다: ${errorInfo.message}`;
 
     // 브라우저 알림 또는 커스텀 모달
-    if ((window as any).electronAPI?.showErrorDialog) {
-      (window as any).electronAPI.showErrorDialog(message);
+    if (window.electronAPI && 'showErrorDialog' in window.electronAPI) {
+      (window.electronAPI as typeof window.electronAPI & {
+        showErrorDialog: (message: string) => void;
+      }).showErrorDialog(message);
     } else {
       alert(message);
     }

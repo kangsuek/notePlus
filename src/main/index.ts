@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import { RecentFilesManager } from './RecentFilesManager';
-import { SettingsManager } from './SettingsManager';
+import { SettingsManager, EditorSettings } from './SettingsManager';
 import { existsSync } from 'fs';
 import { setupMenu } from './menu';
 import { detectEncoding } from './utils/encodingDetector';
@@ -10,6 +10,24 @@ import iconv from 'iconv-lite';
 
 // 개발 환경 확인
 const isDev = process.env.NODE_ENV === 'development';
+
+// 타입 가드 함수
+function isValidSettings(obj: unknown): obj is Partial<EditorSettings> {
+  if (typeof obj !== 'object' || obj === null) {
+    return false;
+  }
+  const settings = obj as Record<string, unknown>;
+  if ('showLineNumbers' in settings && typeof settings.showLineNumbers !== 'boolean') {
+    return false;
+  }
+  if ('fontFamily' in settings && typeof settings.fontFamily !== 'string') {
+    return false;
+  }
+  if ('fontSize' in settings && typeof settings.fontSize !== 'number') {
+    return false;
+  }
+  return true;
+}
 
 // 메인 윈도우 인스턴스
 let mainWindow: BrowserWindow | null = null;
@@ -521,9 +539,15 @@ function setupIpcHandlers() {
   // 설정 저장
   ipcMain.handle('settings:save', (_event, settings: unknown) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-      settingsManager.saveSettings(settings as any);
-      return { success: true };
+      if (isValidSettings(settings)) {
+        settingsManager.saveSettings(settings);
+        return { success: true };
+      } else {
+        return {
+          success: false,
+          error: 'Invalid settings format',
+        };
+      }
     } catch (error) {
       console.error('Failed to save settings:', error);
       return {
