@@ -153,7 +153,7 @@ describe('securityUtils', () => {
         token: 'abc123',
         data: 'normal data',
       };
-      
+
       const sanitized = sanitizeForLogging(obj);
       expect(sanitized.password).toBe('***');
       expect(sanitized.token).toBe('***');
@@ -180,7 +180,7 @@ describe('securityUtils', () => {
           },
         },
       };
-      
+
       const sanitized = sanitizeForLogging(obj);
       expect(sanitized.user.password).toBe('***');
       expect(sanitized.user.settings.apiKey).toBe('***');

@@ -70,16 +70,16 @@ function validateInputData(data: unknown): boolean {
       /on\w+\s*=/i,
       /\.\.\//g, // 경로 조작
     ];
-    
-    return !dangerousPatterns.some(pattern => pattern.test(data));
+
+    return !dangerousPatterns.some((pattern) => pattern.test(data));
   }
 
   if (Array.isArray(data)) {
-    return data.every(item => validateInputData(item));
+    return data.every((item) => validateInputData(item));
   }
 
   if (typeof data === 'object') {
-    return Object.values(data).every(value => validateInputData(value));
+    return Object.values(data).every((value) => validateInputData(value));
   }
 
   return true;
@@ -111,7 +111,7 @@ const electronAPI: ElectronAPI = {
     }
 
     // 입력 데이터 검증
-    if (!args.every(arg => validateInputData(arg))) {
+    if (!args.every((arg) => validateInputData(arg))) {
       console.warn(`Blocked dangerous data in send channel: ${channel}`);
       return;
     }
@@ -129,7 +129,7 @@ const electronAPI: ElectronAPI = {
 
     ipcRenderer.on(channel, (_event, ...args) => {
       // 수신된 데이터 검증
-      if (args.every(arg => validateInputData(arg))) {
+      if (args.every((arg) => validateInputData(arg))) {
         callback(...args);
       } else {
         console.warn(`Blocked dangerous data in on channel: ${channel}`);
@@ -145,7 +145,7 @@ const electronAPI: ElectronAPI = {
     }
 
     // 입력 데이터 검증
-    if (!args.every(arg => validateInputData(arg))) {
+    if (!args.every((arg) => validateInputData(arg))) {
       throw new Error(`Invalid data for channel: ${channel}`);
     }
 

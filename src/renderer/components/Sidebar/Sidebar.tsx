@@ -11,43 +11,46 @@ import { FILE_CONFIG } from '@renderer/constants';
 import type { SidebarProps, SidebarRef } from '@renderer/types';
 import { getRecentFiles, removeRecentFile, type RecentFile } from '@renderer/utils/fileOperations';
 import './Sidebar.css';
+import { DEFAULT_PATH_MAX_LENGTH } from '@renderer/constants/ui';
 
 /**
  * 경로를 단축하여 표시 (예: /Users/name/very/long/path/to/file.md → ~/very/.../file.md)
  */
-function shortenPath(fullPath: string, maxLength: number = 40): string {
-  let path = fullPath;
-
-  // 홈 디렉토리를 ~로 변경 (패턴 매칭 사용)
-  // macOS/Linux: /Users/username/ 또는 /home/username/
-  // Windows: C:\Users\username\
+/**
+ * 홈 디렉토리 경로를 ~로 축약하는 헬퍼 함수
+ */
+function replaceHomeDirectory(path: string): string {
   const unixHomePattern = /^(\/Users\/[^/]+|\/home\/[^/]+)(\/|$)/;
   const windowsHomePattern = /^[A-Z]:\\Users\\[^\\]+\\/i;
 
   if (unixHomePattern.test(path)) {
-    path = path.replace(unixHomePattern, '~$2');
+    return path.replace(unixHomePattern, '~$2');
   } else if (windowsHomePattern.test(path)) {
-    path = path.replace(windowsHomePattern, '~\\');
+    return path.replace(windowsHomePattern, '~\\');
   }
+  
+  return path;
+}
 
-  // 경로가 충분히 짧으면 그대로 반환
-  if (path.length <= maxLength) {
-    return path;
-  }
-
-  // 경로를 부분으로 나누기 (/ 또는 \ 구분자 지원)
+/**
+ * 경로를 구분자에 따라 분할하는 헬퍼 함수
+ */
+function splitPath(path: string): { separator: string; parts: string[] } {
   const separator = path.includes('\\') ? '\\' : '/';
   const parts = path.split(separator);
+  return { separator, parts };
+}
 
-  // 파일명과 마지막 디렉토리는 유지
-  if (parts.length <= 2) {
-    return path;
-  }
-
+/**
+ * 경로를 축약하는 헬퍼 함수
+ */
+function createShortenedPath(
+  parts: string[],
+  separator: string,
+  maxLength: number
+): string {
   const fileName = parts[parts.length - 1];
   const lastDir = parts[parts.length - 2];
-
-  // 처음 부분 (~ 또는 / 또는 드라이브 문자)
   const prefix = parts[0] || separator;
 
   // 중간을 생략하고 마지막 2개 부분만 표시
@@ -59,6 +62,27 @@ function shortenPath(fullPath: string, maxLength: number = 40): string {
   }
 
   return shortened;
+}
+
+function shortenPath(fullPath: string, maxLength: number = DEFAULT_PATH_MAX_LENGTH): string {
+  // 1단계: 홈 디렉토리를 ~로 변경
+  let path = replaceHomeDirectory(fullPath);
+
+  // 2단계: 경로가 충분히 짧으면 그대로 반환
+  if (path.length <= maxLength) {
+    return path;
+  }
+
+  // 3단계: 경로를 부분으로 나누기
+  const { separator, parts } = splitPath(path);
+
+  // 4단계: 파일명과 마지막 디렉토리는 유지
+  if (parts.length <= 2) {
+    return path;
+  }
+
+  // 5단계: 경로 축약
+  return createShortenedPath(parts, separator, maxLength);
 }
 
 const Sidebar = React.memo(

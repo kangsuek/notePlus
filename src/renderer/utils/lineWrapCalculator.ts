@@ -33,6 +33,68 @@ function getTextWidth(text: string, font: string): number {
  * @param textareaElement textarea DOM 엘리먼트
  * @returns 시각적 줄 정보 배열
  */
+/**
+ * textarea의 스타일 정보를 가져오는 헬퍼 함수
+ */
+function getTextareaStyleInfo(textareaElement: HTMLTextAreaElement) {
+  const computedStyle = window.getComputedStyle(textareaElement);
+  const font = `${computedStyle.fontSize} ${computedStyle.fontFamily}`;
+  
+  const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+  const availableWidth = textareaElement.clientWidth - paddingLeft - paddingRight;
+  
+  return { font, availableWidth };
+}
+
+/**
+ * 스크롤바 너비를 고려한 실제 사용 가능한 너비 계산
+ */
+function getAdjustedWidth(textareaElement: HTMLTextAreaElement, availableWidth: number): number {
+  if (textareaElement.scrollHeight > textareaElement.clientHeight) {
+    const scrollbarWidth = textareaElement.offsetWidth - textareaElement.clientWidth;
+    return availableWidth - scrollbarWidth;
+  }
+  return availableWidth;
+}
+
+/**
+ * 단일 라인의 줄바꿈 정보를 계산하는 헬퍼 함수
+ */
+function calculateLineWrap(
+  line: string,
+  lineNumber: number,
+  font: string,
+  adjustedWidth: number
+): LineWrapInfo[] {
+  // 빈 줄은 한 줄로 처리
+  if (line.length === 0) {
+    return [{ logicalLineNumber: lineNumber, isWrapped: false }];
+  }
+
+  const textWidth = getTextWidth(line, font);
+  
+  if (textWidth <= adjustedWidth) {
+    // 한 줄에 들어감
+    return [{ logicalLineNumber: lineNumber, isWrapped: false }];
+  }
+
+  // 여러 줄로 나뉨
+  const visualLineCount = Math.ceil(textWidth / adjustedWidth);
+  const result: LineWrapInfo[] = [];
+  
+  // 첫 번째 줄은 줄번호 표시
+  result.push({ logicalLineNumber: lineNumber, isWrapped: false });
+  
+  // 나머지는 빈 줄번호 (최소 1개는 보장)
+  const wrappedLines = Math.max(1, visualLineCount - 1);
+  for (let i = 0; i < wrappedLines; i++) {
+    result.push({ logicalLineNumber: lineNumber, isWrapped: true });
+  }
+  
+  return result;
+}
+
 export function calculateLineWraps(
   text: string,
   textareaElement: HTMLTextAreaElement | null
@@ -48,77 +110,15 @@ export function calculateLineWraps(
 
   const lines = text.split('\n');
   const result: LineWrapInfo[] = [];
+  
+  const { font, availableWidth } = getTextareaStyleInfo(textareaElement);
+  const adjustedWidth = getAdjustedWidth(textareaElement, availableWidth);
 
-  // textarea의 스타일 정보 가져오기
-  const computedStyle = window.getComputedStyle(textareaElement);
-  const font = `${computedStyle.fontSize} ${computedStyle.fontFamily}`;
-
-  // textarea의 실제 콘텐츠 너비 계산
-  const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-  const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-  const availableWidth = textareaElement.clientWidth - paddingLeft - paddingRight;
-
-  // 스크롤바가 있으면 너비에서 제외
-  if (textareaElement.scrollHeight > textareaElement.clientHeight) {
-    // 실제 스크롤바 너비 계산
-    const scrollbarWidth = textareaElement.offsetWidth - textareaElement.clientWidth;
-    const adjustedWidth = availableWidth - scrollbarWidth;
-
-    lines.forEach((line, index) => {
-      const lineNumber = index + 1;
-
-      // 빈 줄은 한 줄로 처리
-      if (line.length === 0) {
-        result.push({ logicalLineNumber: lineNumber, isWrapped: false });
-        return;
-      }
-
-      // 텍스트 너비 측정
-      const textWidth = getTextWidth(line, font);
-
-      if (textWidth <= adjustedWidth) {
-        // 한 줄에 들어감
-        result.push({ logicalLineNumber: lineNumber, isWrapped: false });
-      } else {
-        // 여러 줄로 나뉨 - 더 정확한 계산
-        const visualLineCount = Math.ceil(textWidth / adjustedWidth);
-
-        // 첫 번째 줄은 줄번호 표시
-        result.push({ logicalLineNumber: lineNumber, isWrapped: false });
-
-        // 나머지는 빈 줄번호 (최소 1개는 보장)
-        const wrappedLines = Math.max(1, visualLineCount - 1);
-        for (let i = 0; i < wrappedLines; i++) {
-          result.push({ logicalLineNumber: lineNumber, isWrapped: true });
-        }
-      }
-    });
-  } else {
-    // 스크롤바 없음
-    lines.forEach((line, index) => {
-      const lineNumber = index + 1;
-
-      if (line.length === 0) {
-        result.push({ logicalLineNumber: lineNumber, isWrapped: false });
-        return;
-      }
-
-      const textWidth = getTextWidth(line, font);
-
-      if (textWidth <= availableWidth) {
-        result.push({ logicalLineNumber: lineNumber, isWrapped: false });
-      } else {
-        const visualLineCount = Math.ceil(textWidth / availableWidth);
-        result.push({ logicalLineNumber: lineNumber, isWrapped: false });
-
-        // 나머지는 빈 줄번호 (최소 1개는 보장)
-        const wrappedLines = Math.max(1, visualLineCount - 1);
-        for (let i = 0; i < wrappedLines; i++) {
-          result.push({ logicalLineNumber: lineNumber, isWrapped: true });
-        }
-      }
-    });
-  }
+  lines.forEach((line, index) => {
+    const lineNumber = index + 1;
+    const lineWrapInfo = calculateLineWrap(line, lineNumber, font, adjustedWidth);
+    result.push(...lineWrapInfo);
+  });
 
   return result;
 }

@@ -61,7 +61,30 @@ export function sanitizeFileName(fileName: string): string {
   sanitized = sanitized.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
 
   // Windows 예약어 검사
-  const reservedNames = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'];
+  const reservedNames = [
+    'CON',
+    'PRN',
+    'AUX',
+    'NUL',
+    'COM1',
+    'COM2',
+    'COM3',
+    'COM4',
+    'COM5',
+    'COM6',
+    'COM7',
+    'COM8',
+    'COM9',
+    'LPT1',
+    'LPT2',
+    'LPT3',
+    'LPT4',
+    'LPT5',
+    'LPT6',
+    'LPT7',
+    'LPT8',
+    'LPT9',
+  ];
   const nameWithoutExt = path.basename(sanitized, path.extname(sanitized));
   if (reservedNames.includes(nameWithoutExt.toUpperCase())) {
     return 'untitled.txt';
@@ -96,7 +119,7 @@ export function sanitizeFileName(fileName: string): string {
 export function isSafeUrl(url: string): boolean {
   try {
     const urlObj = new URL(url);
-    
+
     // 허용된 프로토콜만 허용
     const allowedProtocols = ['http:', 'https:', 'mailto:', 'tel:'];
     if (!allowedProtocols.includes(urlObj.protocol)) {
@@ -142,7 +165,7 @@ export function containsDangerousPatterns(content: string): boolean {
     /<meta[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*>/i,
   ];
 
-  return dangerousPatterns.some(pattern => pattern.test(content));
+  return dangerousPatterns.some((pattern) => pattern.test(content));
 }
 
 /**
@@ -165,14 +188,18 @@ export function sanitizeForLogging(obj: any): any {
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeForLogging(item));
+    return obj.map((item) => sanitizeForLogging(item));
   }
 
   if (typeof obj === 'object') {
     const sanitized: any = {};
     for (const [key, value] of Object.entries(obj)) {
       // 민감한 키 제외
-      if (['password', 'token', 'key', 'secret', 'apikey', 'authtoken', 'privatekey'].includes(key.toLowerCase())) {
+      if (
+        ['password', 'token', 'key', 'secret', 'apikey', 'authtoken', 'privatekey'].includes(
+          key.toLowerCase()
+        )
+      ) {
         sanitized[key] = '***';
       } else {
         sanitized[key] = sanitizeForLogging(value);
