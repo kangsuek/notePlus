@@ -674,7 +674,11 @@ const MainLayout: React.FC = React.memo(() => {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <TitleBar onPreviewToggle={handlePreviewToggle} isPreviewVisible={finalShowPreview} />
+      <TitleBar
+        onPreviewToggle={handlePreviewToggle}
+        isPreviewVisible={finalShowPreview}
+        isPreviewEnabled={shouldShowPreviewByFileType}
+      />
       <div className="main-content">
         <Sidebar
           ref={sidebarRef}

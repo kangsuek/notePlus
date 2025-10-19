@@ -6,12 +6,14 @@ interface TitleBarProps {
   title?: string;
   onPreviewToggle?: () => void;
   isPreviewVisible?: boolean;
+  isPreviewEnabled?: boolean; // 미리보기 기능 활성화 여부 (md, html 파일인 경우만)
 }
 
 const TitleBar: React.FC<TitleBarProps> = ({
   title = 'notePlus',
   onPreviewToggle,
   isPreviewVisible = true,
+  isPreviewEnabled = true,
 }) => {
   return (
     <div className="title-bar" data-testid="title-bar" role="banner">
@@ -19,7 +21,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
         <span className="title-bar-title">{title}</span>
       </div>
       <div className="title-bar-controls" role="toolbar" aria-label="앱 컨트롤">
-        {onPreviewToggle && (
+        {onPreviewToggle && isPreviewEnabled && (
           <button
             className="title-bar-icon preview-toggle-icon"
             onClick={onPreviewToggle}
