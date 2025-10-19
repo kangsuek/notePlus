@@ -198,7 +198,6 @@ const Sidebar = React.memo(
         onRefreshRecentFiles?.();
       };
 
-
       const handleDelete = async () => {
         // 선택된 문서 삭제
         if (selectedFile) {

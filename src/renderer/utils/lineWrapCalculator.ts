@@ -39,11 +39,11 @@ function getTextWidth(text: string, font: string): number {
 function getTextareaStyleInfo(textareaElement: HTMLTextAreaElement) {
   const computedStyle = window.getComputedStyle(textareaElement);
   const font = `${computedStyle.fontSize} ${computedStyle.fontFamily}`;
-  
+
   const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
   const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
   const availableWidth = textareaElement.clientWidth - paddingLeft - paddingRight;
-  
+
   return { font, availableWidth };
 }
 
@@ -73,7 +73,7 @@ function calculateLineWrap(
   }
 
   const textWidth = getTextWidth(line, font);
-  
+
   if (textWidth <= adjustedWidth) {
     // 한 줄에 들어감
     return [{ logicalLineNumber: lineNumber, isWrapped: false }];
@@ -82,16 +82,16 @@ function calculateLineWrap(
   // 여러 줄로 나뉨
   const visualLineCount = Math.ceil(textWidth / adjustedWidth);
   const result: LineWrapInfo[] = [];
-  
+
   // 첫 번째 줄은 줄번호 표시
   result.push({ logicalLineNumber: lineNumber, isWrapped: false });
-  
+
   // 나머지는 빈 줄번호 (최소 1개는 보장)
   const wrappedLines = Math.max(1, visualLineCount - 1);
   for (let i = 0; i < wrappedLines; i++) {
     result.push({ logicalLineNumber: lineNumber, isWrapped: true });
   }
-  
+
   return result;
 }
 
@@ -110,7 +110,7 @@ export function calculateLineWraps(
 
   const lines = text.split('\n');
   const result: LineWrapInfo[] = [];
-  
+
   const { font, availableWidth } = getTextareaStyleInfo(textareaElement);
   const adjustedWidth = getAdjustedWidth(textareaElement, availableWidth);
 
