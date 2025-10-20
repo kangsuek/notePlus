@@ -11,9 +11,21 @@ let lastOpenPath: string | undefined;
 export function setupDialogHandlers() {
   ipcMain.handle('dialog:saveFile', async (_event, currentFileName?: string) => {
     try {
+      // defaultPath 생성: lastSavePath가 있으면 디렉토리에 파일명 조합, 없으면 파일명만
+      let defaultPath: string | undefined;
+      if (currentFileName) {
+        if (lastSavePath) {
+          defaultPath = path.join(lastSavePath, currentFileName);
+        } else {
+          defaultPath = currentFileName;
+        }
+      } else {
+        defaultPath = lastSavePath;
+      }
+
       const result = await dialog.showSaveDialog({
         title: '파일 저장',
-        defaultPath: currentFileName || lastSavePath,
+        defaultPath,
         filters: [
           { name: '모든 파일', extensions: ['*'] },
           { name: '마크다운 파일', extensions: ['md', 'markdown'] },
@@ -25,10 +37,10 @@ export function setupDialogHandlers() {
 
       if (!result.canceled && result.filePath) {
         lastSavePath = path.dirname(result.filePath);
-        return { success: true, filePath: result.filePath };
+        return { canceled: false, filePath: result.filePath };
       }
 
-      return { success: false, canceled: true };
+      return { canceled: true };
     } catch (error) {
       console.error('Save dialog error:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -51,10 +63,10 @@ export function setupDialogHandlers() {
 
       if (!result.canceled && result.filePaths.length > 0) {
         lastOpenPath = path.dirname(result.filePaths[0]);
-        return { success: true, filePaths: result.filePaths };
+        return { canceled: false, filePaths: result.filePaths };
       }
 
-      return { success: false, canceled: true };
+      return { canceled: true };
     } catch (error) {
       console.error('Open dialog error:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };

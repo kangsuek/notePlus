@@ -159,8 +159,9 @@ export function useFileManagement({
       setCurrentFileName(fileName);
       setIsDirty(false);
       showStatusTemporarily();
+      refreshRecentFiles();
     }
-  }, [markdownText, currentFileName, currentEncoding, showStatusTemporarily, sidebarRef]);
+  }, [markdownText, currentFileName, currentEncoding, showStatusTemporarily, refreshRecentFiles, sidebarRef]);
 
   const handleFileOpen = useCallback(
     async (filePath: string) => {
