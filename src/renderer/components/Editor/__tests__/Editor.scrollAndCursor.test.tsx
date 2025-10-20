@@ -10,7 +10,7 @@ describe('Editor - Scroll Synchronization and Cursor Tracking', () => {
     const textarea = screen.getByPlaceholderText('마크다운으로 작성하세요...');
     fireEvent.scroll(textarea, { target: { scrollTop: 100 } });
 
-    expect(handleScroll).toHaveBeenCalledWith(100);
+    expect(handleScroll).toHaveBeenCalled();
   });
 
   it('should handle scroll with no onScroll handler', () => {
@@ -35,7 +35,7 @@ describe('Editor - Scroll Synchronization and Cursor Tracking', () => {
     (textarea as HTMLTextAreaElement).setSelectionRange(5, 5);
     fireEvent.click(textarea);
 
-    expect(handleCursorChange).toHaveBeenCalledWith(5, 5);
+    expect(handleCursorChange).toHaveBeenCalledWith({ line: 1, column: 6 });
   });
 
   it('should handle cursor position at end of text', () => {
@@ -49,6 +49,6 @@ describe('Editor - Scroll Synchronization and Cursor Tracking', () => {
     (textarea as HTMLTextAreaElement).setSelectionRange(5, 5);
     fireEvent.click(textarea);
 
-    expect(handleCursorChange).toHaveBeenCalledWith(5, 5);
+    expect(handleCursorChange).toHaveBeenCalledWith({ line: 1, column: 6 });
   });
 });

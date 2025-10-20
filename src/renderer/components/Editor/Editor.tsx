@@ -253,9 +253,7 @@ const Editor = React.memo(
             }
           } else {
             // 여러 줄 선택: 블록 들여쓰기/해제
-            const selectedText = text.substring(start, end);
             const textBeforeSelection = text.substring(0, start);
-            const textAfterSelection = text.substring(end);
 
             // 선택 영역의 시작과 끝 줄 찾기
             const linesBeforeSelection = textBeforeSelection.split('\n');
@@ -297,7 +295,7 @@ const Editor = React.memo(
             }
           }
         },
-        [text, onChange, updateCursorPosition]
+        [text, onChange]
       );
 
       // Enter 키 처리: 마크다운 목록 자동 생성 또는 들여쓰기 유지
@@ -385,7 +383,7 @@ const Editor = React.memo(
             }
           }
         },
-        [text, onChange, updateCursorPosition, fileName]
+        [text, onChange, fileName]
       );
 
       // 단축키 처리: Cmd+B, Cmd+I, Cmd+K
@@ -461,7 +459,7 @@ const Editor = React.memo(
             onChange(newValue);
           }
         },
-        [text, onChange, updateCursorPosition]
+        [text, onChange]
       );
 
       // = 키 처리: 수식 계산
@@ -508,7 +506,7 @@ const Editor = React.memo(
             onChange(newValue);
           }
         },
-        [text, onChange, updateCursorPosition]
+        [text, onChange]
       );
 
       // 키보드 이벤트 통합 핸들러
@@ -699,7 +697,7 @@ const Editor = React.memo(
           if (searchResults.length === 0) return;
 
           // Use current search query and options
-          const { newText, count } = replaceAll(
+          const { newText } = replaceAll(
             text,
             currentSearchQuery,
             replacement,
@@ -766,7 +764,7 @@ const Editor = React.memo(
             savedCursorPosRef.current = null;
           }
         }
-      }, [controlledValue]); // text 제거 - 무한 루프 방지
+      }, [controlledValue]); // text 제거 - 무한 루프 방지 (ESLint 경고 무시)
 
       // 커서 위치/선택 범위 복원 (useLayoutEffect로 동기적 처리)
       useLayoutEffect(() => {
