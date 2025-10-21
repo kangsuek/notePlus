@@ -746,8 +746,9 @@ const Editor = React.memo(
       // 외부에서 value가 변경되면 내부 상태 업데이트 및 검색 상태 초기화
       useEffect(() => {
         if (controlledValue !== undefined && controlledValue !== text) {
-          // 현재 커서 위치 저장
-          if (textareaRef.current) {
+          // 현재 커서 위치 저장 - 단, 이미 저장된 커서 위치가 없을 때만
+          // (handleTab, handleEnter 등에서 이미 커서 위치를 설정한 경우 덮어쓰지 않음)
+          if (textareaRef.current && savedCursorPosRef.current === null && savedSelectionRef.current === null) {
             savedCursorPosRef.current = textareaRef.current.selectionStart;
           }
 
